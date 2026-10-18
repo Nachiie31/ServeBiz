@@ -3,6 +3,7 @@ import { getCurrentBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Category, Product, StockRow } from "@/lib/types";
+import QuickPrice from "./QuickPrice";
 
 type SearchParams = Promise<{ q?: string; filter?: string }>;
 
@@ -18,14 +19,25 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const business = (await getCurrentBusiness())!;
   const supabase = await createClient();
 
-  const [productsRes, stockRes, catRes] = await Promise.all([
+  const [productsRes, stockRes, catRes, costRes] = await Promise.all([
     supabase.from("products")
       .select("id,business_id,code,barcode,name,category_id,unit,selling_price,reorder_level,is_active")
       .eq("business_id", business.id)
       .order("name"),
     supabase.from("product_stock").select("product_id,total_quantity,nearest_expiry").eq("business_id", business.id),
     supabase.from("categories").select("id,name").eq("business_id", business.id),
+    supabase
+      .from("stock_batches")
+      .select("product_id,base_price,created_at")
+      .eq("business_id", business.id)
+      .order("created_at", { ascending: false }),
   ]);
+
+  // Latest cost per product (rows arrive newest first, so the first one seen wins)
+  const latestCost = new Map<string, number>();
+  for (const b of (costRes.data ?? []) as { product_id: string; base_price: number }[]) {
+    if (!latestCost.has(b.product_id)) latestCost.set(b.product_id, b.base_price);
+  }
 
   const products = (productsRes.data ?? []) as Product[];
   const stock = new Map(((stockRes.data ?? []) as StockRow[]).map((s) => [s.product_id, s]));
@@ -93,7 +105,18 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                     </td>
                     <td>{p.category_id ? categories.get(p.category_id) ?? "-" : "-"}</td>
                     <td className="num">{qty} {p.unit}</td>
-                    <td className="num">{p.selling_price > 0 ? formatMoney(p.selling_price, business.currency) : "-"}</td>
+                    <td className="num">
+                      <QuickPrice
+                        key={`${p.id}-${p.selling_price}`}
+                        productId={p.id}
+                        price={p.selling_price}
+                        isActive={p.is_active}
+                        latestCost={latestCost.get(p.id) ?? null}
+                      />
+                      {latestCost.has(p.id) && (
+                        <div className="muted" style={{ fontSize: 12 }}>cost {formatMoney(latestCost.get(p.id)!, business.currency)}</div>
+                      )}
+                    </td>
                     <td>{formatDate(s?.nearest_expiry ?? null)}</td>
                     <td>
                       {!p.is_active || p.selling_price <= 0 ? (

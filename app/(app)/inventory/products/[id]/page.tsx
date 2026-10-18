@@ -4,6 +4,7 @@ import { getCurrentBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { daysUntil, formatDate, formatMoney } from "@/lib/format";
 import type { Batch, Category, Movement, Product } from "@/lib/types";
+import LocalTime from "@/components/LocalTime";
 import ProductForm from "./ProductForm";
 import AdjustStockForm from "./AdjustStockForm";
 
@@ -137,7 +138,7 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
               <tbody>
                 {movements.map((m) => (
                   <tr key={m.id}>
-                    <td>{new Date(m.created_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })}</td>
+                    <td><LocalTime iso={m.created_at} /></td>
                     <td>{TYPE_LABEL[m.movement_type] ?? m.movement_type}</td>
                     <td className="num">{m.quantity_change > 0 ? `+${m.quantity_change}` : m.quantity_change}</td>
                     <td>{m.reason ?? "-"}</td>

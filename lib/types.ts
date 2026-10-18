@@ -26,6 +26,7 @@ export type StockRow = {
   product_id: string;
   total_quantity: number;
   nearest_expiry: string | null;
+  sellable_quantity?: number;
 };
 
 export type Batch = {

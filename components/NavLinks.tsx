@@ -8,7 +8,9 @@ const links: { href: string; label: string; section?: string; disabled?: boolean
   { href: "/inventory/receiving", label: "Receiving", section: "Inventory" },
   { href: "/inventory/products", label: "Products" },
   { href: "/inventory/suppliers", label: "Suppliers" },
-  { href: "/pos", label: "Point of sale", section: "Sales", disabled: true, tag: "Soon" },
+  { href: "/pos", label: "Point of sale", section: "Sales" },
+  { href: "/sales", label: "Sales history" },
+  { href: "/settings", label: "Settings", section: "Business" },
 ];
 
 export default function NavLinks() {

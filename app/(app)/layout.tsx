@@ -3,6 +3,7 @@ import { getCurrentBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import NavLinks from "@/components/NavLinks";
 import "../app.css";
+import "../pos.css";
 
 async function signOut() {
   "use server";

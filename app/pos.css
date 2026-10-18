@@ -1,0 +1,67 @@
+.pos { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .pos { grid-template-columns: 1fr; } }
+
+.pos-search { display: flex; gap: 10px; margin-bottom: 12px; }
+.pos-search .input { flex: 1; font-size: 16px; }
+.cat-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.cat-row button { cursor: pointer; font: inherit; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.tile { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; cursor: pointer; font: inherit; color: var(--ink); display: flex; flex-direction: column; gap: 4px; min-height: 96px; }
+.tile:hover:not(:disabled) { border-color: var(--brand); }
+.tile:disabled { opacity: .5; cursor: not-allowed; }
+.tile .t-name { font-weight: 600; line-height: 1.25; }
+.tile .t-price { color: var(--brand); font-weight: 700; margin-top: auto; }
+.tile .t-stock { font-size: 12px; color: var(--muted); }
+
+.cart { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; position: sticky; top: 16px; }
+.cart h3 { margin-bottom: 10px; }
+.cart-empty { color: var(--muted); padding: 18px 0; text-align: center; font-size: 14px; }
+.cart-line { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.cart-line .name { font-weight: 600; font-size: 14px; }
+.cart-line .each { color: var(--muted); font-size: 12px; }
+.cart-line .amt { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.qty { display: inline-flex; align-items: center; gap: 4px; }
+.qty button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; font-size: 16px; line-height: 1; }
+.qty button:hover:not(:disabled) { border-color: var(--muted); }
+.qty button:disabled { opacity: .4; cursor: not-allowed; }
+.qty span { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+.qty .remove { margin-left: 6px; width: auto; padding: 0 8px; font-size: 12px; }
+
+.totals { margin: 12px 0; font-size: 14px; }
+.totals > div { display: flex; justify-content: space-between; padding: 3px 0; font-variant-numeric: tabular-nums; }
+.totals .grand { font-size: 20px; font-weight: 700; border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
+
+.disc-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; margin-bottom: 10px; }
+.pay-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; margin-bottom: 10px; }
+.pay-methods button { padding: 8px 4px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+.pay-methods button.on { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.quick button { padding: 5px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+.change { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 10px; }
+.change.short { color: var(--danger); }
+
+.modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; padding: 16px; z-index: 50; }
+.modal { background: var(--surface); border-radius: 14px; padding: 20px; max-width: 380px; width: 100%; max-height: 92vh; overflow-y: auto; }
+.modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+.modal-actions .btn { flex: 1; }
+
+/* Receipt (always black on white so it prints and reads the same in dark mode) */
+.receipt { background: #fff; color: #111; border: 1px dashed #bbb; border-radius: 8px; padding: 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+.receipt-head { text-align: center; margin-bottom: 10px; line-height: 1.4; }
+.receipt-meta { display: flex; justify-content: space-between; border-top: 1px dashed #999; border-bottom: 1px dashed #999; padding: 6px 0; margin-bottom: 8px; }
+.receipt-void { text-align: center; font-weight: 700; color: #b3261e; border: 2px solid #b3261e; padding: 2px; margin-bottom: 8px; }
+.receipt-lines { width: 100%; border-collapse: collapse; }
+.receipt-lines td { padding: 3px 0; vertical-align: top; }
+.receipt-lines td.r { text-align: right; white-space: nowrap; padding-left: 8px; }
+.receipt-sub { color: #666; font-size: 12px; }
+.receipt-totals { border-top: 1px dashed #999; margin-top: 8px; padding-top: 8px; }
+.receipt-totals > div { display: flex; justify-content: space-between; padding: 1px 0; }
+.receipt-totals .grand { font-weight: 700; font-size: 15px; }
+.receipt-foot { text-align: center; margin-top: 12px; color: #555; }
+
+@media print {
+  body * { visibility: hidden; }
+  .receipt-print, .receipt-print * { visibility: visible; }
+  .receipt-print { position: absolute; left: 0; top: 0; width: 80mm; border: 0; border-radius: 0; }
+}

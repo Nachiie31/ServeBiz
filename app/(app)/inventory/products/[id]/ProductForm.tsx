@@ -140,7 +140,17 @@ export default function ProductForm({ businessId, product, categories, latestCos
           <label htmlFor="price">Selling price</label>
           <input id="price" className="input" type="number" min={0} step="0.01" value={price}
             onChange={(e) => setPrice(e.target.value)} />
-          {latestCost !== null && <span className="hint">Latest cost: {formatMoney(latestCost, currency)}</span>}
+          {latestCost !== null && (
+            <span className="hint">
+              Latest cost: {formatMoney(latestCost, currency)}. Markup:{" "}
+              {[20, 30, 50].map((m) => (
+                <button key={m} type="button" className="link-btn" style={{ marginRight: 8 }}
+                  onClick={() => setPrice((Math.round(latestCost * (1 + m / 100) * 100) / 100).toString())}>
+                  +{m}%
+                </button>
+              ))}
+            </span>
+          )}
         </div>
         <div className="field">
           <label htmlFor="reorder">Reorder level</label>
