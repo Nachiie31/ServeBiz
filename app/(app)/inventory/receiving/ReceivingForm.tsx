@@ -10,7 +10,7 @@ import type { Supplier } from "@/lib/types";
 type Props = {
   businessId: string;
   suppliers: Supplier[];
-  products: { code: string; name: string }[];
+  products: { code: string; name: string; selling_price: number }[];
 };
 
 const NEW_SUPPLIER = "__new";
@@ -27,6 +27,7 @@ export default function ReceivingForm({ businessId, suppliers, products }: Props
   const [expiry, setExpiry] = useState("");
   const [quantity, setQuantity] = useState("");
   const [basePrice, setBasePrice] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
   const [batchNo, setBatchNo] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -35,6 +36,15 @@ export default function ReceivingForm({ businessId, suppliers, products }: Props
   const [success, setSuccess] = useState<{ text: string; code: string } | null>(null);
 
   const existing = products.find((p) => p.code.toLowerCase() === code.trim().toLowerCase());
+  const alreadyPriced = !!existing && existing.selling_price > 0;
+  const costNum = Number(basePrice);
+  const sellNum = Number(sellingPrice);
+  const belowCost = sellingPrice !== "" && basePrice !== "" && sellNum > 0 && sellNum < costNum;
+
+  function applyMarkup(percent: number) {
+    if (basePrice === "" || !(costNum > 0)) return;
+    setSellingPrice((Math.round(costNum * (1 + percent / 100) * 100) / 100).toString());
+  }
 
   function onCodeChange(value: string) {
     setCode(value);
@@ -73,7 +83,7 @@ export default function ReceivingForm({ businessId, suppliers, products }: Props
       supplier = data.id;
     }
 
-    const { error: rpcErr } = await supabase.rpc("receive_stock", {
+    const { data: batchId, error: rpcErr } = await supabase.rpc("receive_stock", {
       p_business_id: businessId,
       p_code: code.trim(),
       p_name: name.trim(),
@@ -95,11 +105,29 @@ export default function ReceivingForm({ businessId, suppliers, products }: Props
       );
     }
 
+    // Optional selling price: only applied when the product has no price yet.
+    let priced = false;
+    if (sellNum > 0 && !alreadyPriced && batchId) {
+      const { data: b } = await supabase
+        .from("stock_batches")
+        .select("product_id,products(selling_price)")
+        .eq("id", batchId)
+        .single();
+      const row = b as unknown as { product_id: string; products: { selling_price: number } | null } | null;
+      if (row && (row.products?.selling_price ?? 0) <= 0) {
+        const { error: priceErr } = await supabase
+          .from("products")
+          .update({ selling_price: sellNum, is_active: true })
+          .eq("id", row.product_id);
+        priced = !priceErr;
+      }
+    }
+
     setSuccess({
-      text: `Received ${qty} unit${qty === 1 ? "" : "s"} of ${name.trim() || code.trim()}.`,
+      text: `Received ${qty} unit${qty === 1 ? "" : "s"} of ${name.trim() || code.trim()}.${priced ? " Price set, ready to sell in the POS." : alreadyPriced ? "" : " Set its selling price in Products to sell it."}`,
       code: code.trim(),
     });
-    setCode(""); setName(""); setQuantity(""); setBasePrice(""); setBatchNo(""); setNotes(""); setExpiry("");
+    setCode(""); setName(""); setQuantity(""); setBasePrice(""); setSellingPrice(""); setBatchNo(""); setNotes(""); setExpiry("");
     setSupplierId(""); setNewSupplier("");
     setLoading(false);
     router.refresh();
@@ -177,6 +205,25 @@ export default function ReceivingForm({ businessId, suppliers, products }: Props
           <label htmlFor="price">Base price per unit (your cost)</label>
           <input id="price" className="input" type="number" min={0} step="0.01" required value={basePrice}
             onChange={(e) => setBasePrice(e.target.value)} />
+        </div>
+
+        <div className="field">
+          <label htmlFor="sell">Selling price per unit <span className="hint">(optional)</span></label>
+          {alreadyPriced ? (
+            <input id="sell" className="input" value={`Already priced at ${existing!.selling_price}`} readOnly />
+          ) : (
+            <>
+              <input id="sell" className="input" type="number" min={0} step="0.01" value={sellingPrice}
+                onChange={(e) => setSellingPrice(e.target.value)} placeholder="Set now or later in Products" />
+              <span className="hint">
+                Markup on cost:{" "}
+                {[20, 30, 50].map((m) => (
+                  <button key={m} type="button" className="link-btn" style={{ marginRight: 8 }} onClick={() => applyMarkup(m)}>+{m}%</button>
+                ))}
+              </span>
+            </>
+          )}
+          {belowCost && <span className="hint" style={{ color: "var(--danger)" }}>Below your cost, so each sale would lose money.</span>}
         </div>
 
         <div className="field full">

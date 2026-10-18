@@ -1,0 +1,74 @@
+import { getCurrentBusiness } from "@/lib/business";
+import { createClient } from "@/lib/supabase/server";
+import type { Category } from "@/lib/types";
+import { isStripeEnabled } from "@/lib/stripe";
+import PosClient, { type PosProduct } from "./PosClient";
+
+export default async function PosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ canceled?: string; stripe_error?: string }>;
+}) {
+  const { canceled, stripe_error } = await searchParams;
+  const business = (await getCurrentBusiness())!;
+  const supabase = await createClient();
+
+  const [productsRes, stockRes, catRes, taxRes] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id,code,barcode,name,category_id,unit,selling_price")
+      .eq("business_id", business.id)
+      .eq("is_active", true)
+      .gt("selling_price", 0)
+      .order("name"),
+    supabase.from("product_stock").select("product_id,sellable_quantity").eq("business_id", business.id),
+    supabase.from("categories").select("id,name").eq("business_id", business.id).order("name"),
+    supabase.from("businesses").select("tax_rate").eq("id", business.id).single(),
+  ]);
+
+  const stock = new Map(
+    ((stockRes.data ?? []) as { product_id: string; sellable_quantity: number }[]).map((s) => [s.product_id, s.sellable_quantity])
+  );
+
+  const products: PosProduct[] = (
+    (productsRes.data ?? []) as {
+      id: string; code: string; barcode: string | null; name: string;
+      category_id: string | null; unit: string; selling_price: number;
+    }[]
+  ).map((p) => ({
+    id: p.id,
+    code: p.code,
+    barcode: p.barcode,
+    name: p.name,
+    categoryId: p.category_id,
+    unit: p.unit,
+    price: p.selling_price,
+    stock: stock.get(p.id) ?? 0,
+  }));
+
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <h2>Point of sale</h2>
+          <p>Search or scan a barcode, build the cart, and check out.</p>
+        </div>
+      </div>
+      {stockRes.error && (
+        <div className="alert err">
+          Stock levels could not be loaded. Run <code>supabase/migrations/003_pos.sql</code> in the Supabase SQL Editor, then refresh.
+        </div>
+      )}
+      <PosClient
+        business={{ id: business.id, name: business.name, location: business.location, contact_phone: business.contact_phone }}
+        currency={business.currency}
+        taxRate={Number((taxRes.data as { tax_rate: number } | null)?.tax_rate ?? 0)}
+        products={products}
+        categories={(catRes.data ?? []) as Category[]}
+        stripeEnabled={isStripeEnabled()}
+        notice={stripe_error ? stripe_error.slice(0, 600) : null}
+        restoreCart={canceled === "1" || !!stripe_error}
+      />
+    </>
+  );
+}

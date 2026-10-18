@@ -23,7 +23,7 @@ export default async function ReceivingPage() {
 
   const [suppliersRes, productsRes, receiptsRes] = await Promise.all([
     supabase.from("suppliers").select("id,name,contact").eq("business_id", business.id).order("name"),
-    supabase.from("products").select("code,name").eq("business_id", business.id).order("name"),
+    supabase.from("products").select("code,name,selling_price").eq("business_id", business.id).order("name"),
     supabase
       .from("stock_batches")
       .select("id,date_received,expiry_date,quantity_received,quantity_remaining,base_price,batch_no,products(id,code,name),suppliers(name)")
@@ -33,7 +33,7 @@ export default async function ReceivingPage() {
   ]);
 
   const suppliers = (suppliersRes.data ?? []) as Supplier[];
-  const products = (productsRes.data ?? []) as { code: string; name: string }[];
+  const products = (productsRes.data ?? []) as { code: string; name: string; selling_price: number }[];
   const receipts = (receiptsRes.data ?? []) as unknown as Receipt[];
 
   return (
