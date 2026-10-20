@@ -42,7 +42,10 @@ export default async function SalesPage() {
               : "Your 50 most recent sales. Open one to reprint the receipt or void it."}
           </p>
         </div>
-        <Link href="/pos" className="btn btn-primary">Open POS</Link>
+        <div className="head-actions">
+          <a href="/api/export/sales" className="btn" download>Export CSV</a>
+          <Link href="/pos" className="btn btn-primary">Open POS</Link>
+        </div>
       </div>
 
       <div className="stats">

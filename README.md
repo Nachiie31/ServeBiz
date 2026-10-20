@@ -5,7 +5,7 @@ Next.js + Supabase. See `PLAN.md` for the full roadmap.
 ## Run it
 1. Create a free project at supabase.com.
 2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`. Each is safe to run again.
-3. Authentication -> Sign In / Providers -> turn on **Allow anonymous sign-ins** (guest login). Turn off CAPTCHA protection until the app sends a CAPTCHA token.
+3. Authentication -> Sign In / Providers -> turn on **Allow anonymous sign-ins** (guest login). Leave CAPTCHA protection off until you set up the CAPTCHA key below (otherwise Supabase rejects every login).
 4. For quick testing, turn off "Confirm email" under the Email provider.
 5. Copy `.env.example` to `.env.local` and fill in the project URL and anon key (Project Settings -> API).
 6. `npm install` then `npm run dev`, open http://localhost:3000. Restart the dev server after editing `.env.local`.
@@ -69,7 +69,18 @@ Clean up old guests so they do not pile up (they are real accounts in Supabase):
 - run `select public.purge_old_demos(24);` in the SQL Editor now and then, or
 - schedule that same statement in Supabase (Integrations -> Cron).
 
-Before sharing the site publicly, turn CAPTCHA protection on (and add a CAPTCHA widget to the login page), otherwise bots can create guest accounts freely.
+Before sharing the site publicly, turn on CAPTCHA (next section), otherwise bots can create guest accounts freely.
+
+## CAPTCHA (do this before going public)
+Guest logins create real accounts, so protect them from bots with Cloudflare Turnstile (free).
+1. Cloudflare dashboard -> Turnstile -> **Add widget**. Add your site's domain (and `localhost` for testing). Copy the **Site key** and **Secret key**.
+2. Supabase -> Authentication -> Attack Protection -> **Enable CAPTCHA protection** -> provider **Cloudflare Turnstile** -> paste the **Secret key** -> Save.
+3. Put the site key in `.env.local` as `NEXT_PUBLIC_TURNSTILE_SITE_KEY=...` (and in Vercel Environment Variables), then restart `npm run dev` / redeploy.
+
+The login page then shows the check and passes it to Supabase for log in, sign up, and guest login. Do steps 2 and 3 together: a key without Supabase's switch does nothing, and Supabase's switch without a key blocks all logins (the page tells you so). For a quick local test, Cloudflare's test keys always pass: site key `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA`.
+
+## Exporting data
+Products page: **Export products** (prices, cost, stock) and **Export stock batches** (owner/manager). Sales history: **Export CSV** (up to 5,000 rows; a cashier only gets their own sales). Files open in Excel or Google Sheets. Text that looks like a formula is neutralised so a product named `=1+1` cannot run anything.
 
 ## Ideas for later
-Multiple businesses per login, CSV import/export, purchase orders, refunds for partly returned sales. See `PLAN.md`.
+Multiple businesses per login, CSV import, purchase orders, refunds for partly returned sales. See `PLAN.md`.

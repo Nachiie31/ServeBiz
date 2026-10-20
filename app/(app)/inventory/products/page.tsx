@@ -62,7 +62,11 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           <h2>Products</h2>
           <p>Set selling prices and details. Quantity is calculated from received batches.</p>
         </div>
-        <Link href="/inventory/receiving" className="btn btn-primary">Receive products</Link>
+        <div className="head-actions">
+          <a href="/api/export/products" className="btn" download>Export products</a>
+          <a href="/api/export/stock" className="btn" download>Export stock batches</a>
+          <Link href="/inventory/receiving" className="btn btn-primary">Receive products</Link>
+        </div>
       </div>
 
       <form className="toolbar" action="/inventory/products">
