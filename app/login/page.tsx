@@ -4,6 +4,22 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Turnstile, { TURNSTILE_SITE_KEY, type TurnstileHandle } from "@/components/Turnstile";
+
+const captchaOn = !!TURNSTILE_SITE_KEY;
+
+function explain(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("captcha")) {
+    return captchaOn
+      ? "The CAPTCHA check did not pass. Please try again."
+      : "CAPTCHA is turned on in Supabase, but this site has no CAPTCHA key. Add NEXT_PUBLIC_TURNSTILE_SITE_KEY (see the README) or turn CAPTCHA off in Supabase under Authentication > Attack Protection.";
+  }
+  if (m.includes("anonymous")) {
+    return "Guest login is off. In Supabase, enable Authentication > Sign In / Providers > Allow anonymous sign-ins.";
+  }
+  return message;
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -16,32 +32,38 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const captcha = useRef<TurnstileHandle>(null);
   const autoGuest = useRef(false);
+
+  // A CAPTCHA token works once. Take a fresh one after every attempt.
+  const captchaOptions = () => (token ? { captchaToken: token } : undefined);
+  const refreshCaptcha = () => captcha.current?.reset();
+  const waiting = captchaOn && !token;
 
   async function continueAsGuest() {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInAnonymously();
+    const { error } = await supabase.auth.signInAnonymously({ options: captchaOptions() });
     if (error) {
-      setError(
-        error.message.toLowerCase().includes("anonymous")
-          ? "Guest login is off. In Supabase, enable Authentication > Sign In / Providers > Allow anonymous sign-ins."
-          : error.message
-      );
+      setError(explain(error.message));
       setLoading(false);
+      refreshCaptcha();
       return;
     }
     router.push("/dashboard");
     router.refresh();
   }
 
+  // "Try the guest demo" on the landing page arrives here and signs in on its own, once the
+  // CAPTCHA (if any) has been solved.
   useEffect(() => {
-    if (params.get("guest") === "1" && !autoGuest.current) {
-      autoGuest.current = true;
-      void continueAsGuest();
-    }
+    if (params.get("guest") !== "1" || autoGuest.current) return;
+    if (captchaOn && !token) return;
+    autoGuest.current = true;
+    void continueAsGuest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [token]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,23 +75,26 @@ function LoginForm() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${location.origin}/auth/callback` },
+        options: { emailRedirectTo: `${location.origin}/auth/callback`, ...captchaOptions() },
       });
       if (error) {
-        setError(error.message);
+        setError(explain(error.message));
         setLoading(false);
+        refreshCaptcha();
         return;
       }
       if (!data.session) {
         setNotice("Check your email to confirm your account, then log in.");
         setLoading(false);
+        refreshCaptcha();
         return;
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password, options: captchaOptions() });
       if (error) {
-        setError(error.message);
+        setError(explain(error.message));
         setLoading(false);
+        refreshCaptcha();
         return;
       }
     }
@@ -101,17 +126,19 @@ function LoginForm() {
               autoComplete={mode === "login" ? "current-password" : "new-password"} />
           </div>
 
+          <Turnstile ref={captcha} onToken={setToken} />
+
           {error && <p className="error" role="alert">{error}</p>}
           {notice && <p className="notice">{notice}</p>}
 
-          <button className="btn btn-primary btn-block" disabled={loading} type="submit">
-            {loading ? "Please wait..." : mode === "login" ? "Log in" : "Sign up"}
+          <button className="btn btn-primary btn-block" disabled={loading || waiting} type="submit">
+            {loading ? "Please wait..." : waiting ? "Checking you are human..." : mode === "login" ? "Log in" : "Sign up"}
           </button>
         </form>
 
         <div className="divider">or</div>
 
-        <button className="btn btn-block" onClick={continueAsGuest} disabled={loading} type="button">
+        <button className="btn btn-block" onClick={continueAsGuest} disabled={loading || waiting} type="button">
           Continue as guest (portfolio demo)
         </button>
 

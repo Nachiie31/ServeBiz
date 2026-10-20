@@ -10,7 +10,8 @@
 | 4. Reports and tax, dashboard sales chart | Done |
 | 4. Staff roles (owner, manager, cashier) | Done |
 | 4. Guest demo data | Done |
-| Later: multi-business switcher, CSV import/export, purchase orders, partial refunds, audit log, PWA/offline | Not started |
+| CAPTCHA on login (Turnstile), CSV export | Done |
+| Later: multi-business switcher, CSV import, pagination, purchase orders, partial refunds, audit log, PWA/offline | Not started |
 
 Stack: Next.js (App Router, TypeScript) + Supabase (Auth, Postgres, Storage) + Stripe (test mode). Deployed online (Vercel + Supabase).
 

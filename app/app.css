@@ -90,3 +90,5 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .perm-table td:first-child, .perm-table th:first-child { text-align: left; }
 .yes { color: var(--brand); font-weight: 700; }
 .no { color: var(--muted); }
+
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
