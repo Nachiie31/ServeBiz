@@ -1,5 +1,17 @@
 # ServeBiz: Roadmap
 
+## Status
+| Phase | State |
+|---|---|
+| 0. Landing, login, guest login, business setup | Done |
+| 1. Inventory: receiving, batches, products, suppliers, stock removal | Done |
+| 2. POS: cart, discounts, cash, receipts, sales history, void | Done |
+| 3. Stripe test payments (card, GCash when enabled) | Done |
+| 4. Reports and tax, dashboard sales chart | Done |
+| 4. Staff roles (owner, manager, cashier) | Done |
+| 4. Guest demo data | Done |
+| Later: multi-business switcher, CSV import/export, purchase orders, partial refunds, audit log, PWA/offline | Not started |
+
 Stack: Next.js (App Router, TypeScript) + Supabase (Auth, Postgres, Storage) + Stripe (test mode). Deployed online (Vercel + Supabase).
 
 ## Phase 0: Foundation (this scaffold)
@@ -66,7 +78,6 @@ Also in Phase 1:
 ## Data model (see supabase/schema.sql)
 businesses, business_members, suppliers, categories, products, stock_batches (received products), stock_movements (ledger), sales, sale_items, payments.
 
-## Decisions to confirm later
-- Currency default (PHP?)
-- Business types list (retail, restaurant/cafe, pharmacy, grocery, hardware, salon, other)
-- Whether guest data should be wiped every session or every 24h
+## Decisions made
+- Currency default is PHP (changeable in Settings).
+- Guest demo data is cleared after 24 hours (`purge_old_demos`), and a guest can reset it any time.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatMoney } from "@/lib/format";
@@ -22,20 +23,26 @@ type Props = {
   business: { id: string; name: string; location: string | null; contact_phone: string | null };
   currency: string;
   taxRate: number;
+  taxName: string;
+  taxInclusive: boolean;
   products: PosProduct[];
   categories: Category[];
   stripeEnabled: boolean;
   notice: string | null;
   restoreCart: boolean;
+  /** only the owner can open Settings to change tax */
+  canEditTax: boolean;
 };
 
-type Method = "cash" | "card" | "ewallet" | "stripe";
+// Two ways to pay: cash at the counter, or online through Stripe (card, GCash, and whatever else
+// is enabled in the Stripe dashboard).
+type Method = "cash" | "stripe";
 
 const CART_KEY = "servebiz-cart";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export default function PosClient({ business, currency, taxRate, products, categories, stripeEnabled, notice, restoreCart }: Props) {
+export default function PosClient({ business, currency, taxRate, taxName, taxInclusive, products, categories, stripeEnabled, notice, restoreCart, canEditTax }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -47,7 +54,6 @@ export default function PosClient({ business, currency, taxRate, products, categ
   const [discountValue, setDiscountValue] = useState("");
   const [method, setMethod] = useState<Method>("cash");
   const [tendered, setTendered] = useState("");
-  const [reference, setReference] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(notice);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
@@ -68,7 +74,7 @@ export default function PosClient({ business, currency, taxRate, products, categ
         if (p && Number.isInteger(qty) && qty > 0 && p.stock > 0) restored[id] = Math.min(qty, p.stock);
       }
       setCart(restored);
-      if (!notice) setError("Card payment cancelled. Your cart is still here.");
+      if (!notice) setError("Online payment cancelled. Your cart is still here.");
     } catch {
       // Storage unavailable: start with an empty cart.
     }
@@ -94,8 +100,10 @@ export default function PosClient({ business, currency, taxRate, products, categ
     subtotal,
     round2(discountType === "percent" ? (subtotal * Math.min(discNum, 100)) / 100 : discNum)
   );
-  const tax = round2(((subtotal - discount) * taxRate) / 100);
-  const total = round2(subtotal - discount + tax);
+  // Mirrors quote_sale() in the database, which is the authority at checkout.
+  const base = subtotal - discount;
+  const tax = round2(taxInclusive ? (base * taxRate) / (100 + taxRate) : (base * taxRate) / 100);
+  const total = round2(taxInclusive ? base : base + tax);
 
   const tenderedNum = tendered === "" ? total : Number(tendered);
   const change = round2(tenderedNum - total);
@@ -151,7 +159,6 @@ export default function PosClient({ business, currency, taxRate, products, categ
     setCart({});
     setDiscountValue("");
     setTendered("");
-    setReference("");
     setError(null);
   }
 
@@ -170,7 +177,7 @@ export default function PosClient({ business, currency, taxRate, products, categ
       });
       const json = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !json.url) {
-        setError(json.error ?? "Could not start the card payment.");
+        setError(json.error ?? "Could not start the online payment.");
         setLoading(false);
         return;
       }
@@ -199,8 +206,8 @@ export default function PosClient({ business, currency, taxRate, products, categ
       p_discount_type: discountType,
       p_discount_value: discNum,
       p_method: method,
-      p_tendered: method === "cash" ? tenderedNum : null,
-      p_reference: reference.trim() || null,
+      p_tendered: tenderedNum,
+      p_reference: null,
     });
 
     if (rpcErr || !saleId) {
@@ -222,7 +229,7 @@ export default function PosClient({ business, currency, taxRate, products, categ
       setReceipt({
         ...(sale as Omit<ReceiptData, "items" | "method" | "tendered">),
         method,
-        tendered: method === "cash" ? tenderedNum : null,
+        tendered: tenderedNum,
         items: ((items ?? []) as unknown as { quantity: number; unit_price: number; products: { name: string } | null }[]).map(
           (i) => ({ name: i.products?.name ?? "Item", quantity: i.quantity, unit_price: i.unit_price })
         ),
@@ -324,20 +331,44 @@ export default function PosClient({ business, currency, taxRate, products, categ
             <div className="totals">
               <div><span>Subtotal</span><span>{money(subtotal)}</span></div>
               {discount > 0 && <div><span>Discount</span><span>-{money(discount)}</span></div>}
-              {taxRate > 0 && <div><span>Tax ({taxRate}%)</span><span>{money(tax)}</span></div>}
+              {taxRate > 0 ? (
+                <div>
+                  <span>
+                    {taxName} ({taxRate}%{taxInclusive ? ", included" : ""}){" "}
+                    {canEditTax && <Link href="/settings#tax" className="link-btn" style={{ fontSize: 12 }}>change</Link>}
+                  </span>
+                  <span>{money(tax)}</span>
+                </div>
+              ) : (
+                <div>
+                  <span className="muted">No tax set</span>
+                  {canEditTax ? (
+                    <Link href="/settings#tax" className="link-btn" style={{ fontSize: 13 }}>Add tax</Link>
+                  ) : (
+                    <span className="muted" style={{ fontSize: 12 }}>Ask the owner</span>
+                  )}
+                </div>
+              )}
               <div className="grand"><span>Total</span><span>{money(total)}</span></div>
             </div>
 
-            <div className="pay-methods" role="group" aria-label="Payment method">
-              {([
-                ["cash", "Cash"],
-                ["card", "Card"],
-                ["ewallet", "E-wallet"],
-                ...(stripeEnabled ? [["stripe", "Stripe"]] : []),
-              ] as [Method, string][]).map(([m, label]) => (
-                <button key={m} type="button" className={method === m ? "on" : ""} onClick={() => setMethod(m)}>{label}</button>
-              ))}
+            <div className="pay-methods two" role="group" aria-label="Payment method">
+              <button type="button" className={method === "cash" ? "on" : ""} onClick={() => setMethod("cash")}>Cash</button>
+              <button
+                type="button"
+                className={method === "stripe" ? "on" : ""}
+                disabled={!stripeEnabled}
+                title={stripeEnabled ? undefined : "Add a Stripe test key to enable online payments"}
+                onClick={() => setMethod("stripe")}
+              >
+                Online (Stripe)
+              </button>
             </div>
+            {!stripeEnabled && (
+              <div className="hint" style={{ marginTop: -4, marginBottom: 10, fontSize: 12, color: "var(--muted)" }}>
+                Online payments are off. Add <code>STRIPE_SECRET_KEY</code> to enable them (see README).
+              </div>
+            )}
 
             {method === "cash" ? (
               <>
@@ -356,14 +387,9 @@ export default function PosClient({ business, currency, taxRate, products, categ
                   <span>{money(Math.abs(change))}</span>
                 </div>
               </>
-            ) : method === "stripe" ? (
-              <div className="alert" style={{ fontSize: 13 }}>
-                You will be sent to Stripe&apos;s secure test checkout. Use card <strong>4242 4242 4242 4242</strong>, any future expiry, any CVC.
-              </div>
             ) : (
-              <div className="field" style={{ marginBottom: 10 }}>
-                <label htmlFor="ref">Reference <span className="hint">(optional, e.g. approval code)</span></label>
-                <input id="ref" className="input" value={reference} onChange={(e) => setReference(e.target.value)} />
+              <div className="alert" style={{ fontSize: 13 }}>
+                The customer pays on Stripe&apos;s secure test page (card, GCash, or any other method enabled in your Stripe dashboard). Test card: <strong>4242 4242 4242 4242</strong>, any future expiry, any CVC.
               </div>
             )}
           </>
@@ -375,7 +401,7 @@ export default function PosClient({ business, currency, taxRate, products, categ
           {loading
             ? method === "stripe" ? "Opening Stripe..." : "Processing..."
             : lines.length
-              ? method === "stripe" ? `Pay ${money(total)} by card` : `Charge ${money(total)}`
+              ? method === "stripe" ? `Pay ${money(total)} online` : `Charge ${money(total)}`
               : "Charge"}
         </button>
         {lines.length > 0 && (
@@ -389,7 +415,7 @@ export default function PosClient({ business, currency, taxRate, products, categ
         <div className="modal-back" role="dialog" aria-modal="true" aria-label="Receipt">
           <div className="modal">
             <div className="alert">Sale complete.</div>
-            <Receipt business={business} currency={currency} data={receipt} />
+            <Receipt business={business} currency={currency} data={receipt} taxLabel={taxRate > 0 ? `${taxName} (${taxRate}%${taxInclusive ? ", included" : ""})` : taxName} />
             <div className="modal-actions">
               <button className="btn" type="button" onClick={() => window.print()}>Print</button>
               <button className="btn btn-primary" type="button" onClick={newSale}>New sale</button>

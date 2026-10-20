@@ -18,11 +18,14 @@ type Props = {
   business: { name: string; location: string | null; contact_phone: string | null };
   currency: string;
   data: ReceiptData;
+  /** e.g. "VAT (12%, included)". Falls back to "Tax". */
+  taxLabel?: string;
 };
 
-const METHOD_LABEL: Record<string, string> = { cash: "Cash", card: "Card", ewallet: "E-wallet", stripe: "Card (online)" };
+// card / ewallet are kept so older receipts (from before payments were simplified) still print.
+const METHOD_LABEL: Record<string, string> = { cash: "Cash", stripe: "Online", card: "Card", ewallet: "E-wallet" };
 
-export default function Receipt({ business, currency, data }: Props) {
+export default function Receipt({ business, currency, data, taxLabel }: Props) {
   const money = (n: number) => formatMoney(n, currency);
   const change = data.method === "cash" && data.tendered !== null ? data.tendered - data.total : null;
 
@@ -57,7 +60,7 @@ export default function Receipt({ business, currency, data }: Props) {
       <div className="receipt-totals">
         <div><span>Subtotal</span><span>{money(data.subtotal)}</span></div>
         {data.discount > 0 && <div><span>Discount</span><span>-{money(data.discount)}</span></div>}
-        {data.tax > 0 && <div><span>Tax</span><span>{money(data.tax)}</span></div>}
+        {data.tax > 0 && <div><span>{taxLabel ?? "Tax"}</span><span>{money(data.tax)}</span></div>}
         <div className="grand"><span>Total</span><span>{money(data.total)}</span></div>
         <div><span>Paid by</span><span>{METHOD_LABEL[data.method] ?? data.method}</span></div>
         {data.method === "cash" && data.tendered !== null && (

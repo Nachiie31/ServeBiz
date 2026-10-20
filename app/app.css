@@ -26,6 +26,24 @@
 .stat .value { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; }
 .stat.warn .value { color: var(--danger); }
 
+/* Chart color, validated against the card surface in light and dark (see dataviz check). */
+:root { --chart-1: #0a8a6c; }
+@media (prefers-color-scheme: dark) { :root { --chart-1: #22a57f; } }
+
+.stat .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+.chart-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.chart-head h3 { margin: 0; }
+.chart-head .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+.chart-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 14px 10px; }
+.chart-box { position: relative; width: 100%; transition: opacity .15s ease; }
+.chart-box.loading { opacity: .5; }
+.chart-box svg { display: block; }
+.chart-tip { position: absolute; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.12); pointer-events: none; display: flex; flex-direction: column; gap: 1px; font-size: 12px; color: var(--muted); white-space: nowrap; z-index: 5; }
+.chart-tip strong { font-size: 15px; color: var(--ink); }
+.chart-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none; padding-bottom: 28px; }
+.chart-toggle { font-size: 13px; margin-top: 6px; }
+
 .section { margin-bottom: 28px; }
 .section h3 { font-size: 17px; margin-bottom: 10px; }
 
@@ -62,3 +80,13 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .back { display: inline-block; margin-bottom: 12px; color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; }
 .back:hover { color: var(--ink); }
 .btn-sm { padding: 6px 12px; font-size: 14px; }
+
+/* Guest demo banner */
+.demo-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+
+/* Team page */
+.role-select { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
+.perm-table td, .perm-table th { text-align: center; }
+.perm-table td:first-child, .perm-table th:first-child { text-align: left; }
+.yes { color: var(--brand); font-weight: 700; }
+.no { color: var(--muted); }

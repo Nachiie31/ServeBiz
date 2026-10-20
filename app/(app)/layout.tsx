@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
-import { getCurrentBusiness } from "@/lib/business";
+import { autoJoin, getMembership } from "@/lib/business";
+import { ROLE_LABEL } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import NavLinks from "@/components/NavLinks";
+import ResetDemoButton from "@/components/ResetDemoButton";
 import "../app.css";
 import "../pos.css";
 
@@ -19,8 +21,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const business = await getCurrentBusiness();
-  if (!business) redirect("/onboarding");
+  const membership = await getMembership();
+  if (!membership) {
+    // No business yet. Staff who were invited join theirs, and guests get a demo store.
+    // Anyone else sets up their own business.
+    if (await autoJoin()) redirect("/dashboard");
+    redirect("/onboarding");
+  }
+  const { business, role, isGuest } = membership;
 
   return (
     <div className="shell">
@@ -34,11 +42,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
           <div>
             <strong>{business.name}</strong>
-            <div className="muted" style={{ fontSize: 13 }}>{business.business_type}</div>
+            <div className="muted" style={{ fontSize: 13 }}>
+              {isGuest ? "Guest demo" : ROLE_LABEL[role]}
+            </div>
           </div>
         </div>
 
-        <NavLinks />
+        <NavLinks role={role} />
 
         <form action={signOut} className="sidebar-foot">
           <button className="btn btn-block" type="submit">
@@ -46,7 +56,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </button>
         </form>
       </aside>
-      <main className="main">{children}</main>
+      <main className="main">
+        {isGuest && (
+          <div className="alert demo-banner">
+            <span>
+              You are exploring a demo store with sample data. It is private to you and is cleared after 24 hours.
+            </span>
+            <ResetDemoButton />
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

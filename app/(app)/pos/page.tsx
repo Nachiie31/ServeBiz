@@ -1,4 +1,4 @@
-import { getCurrentBusiness } from "@/lib/business";
+import { getMembership, getTaxSettings } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import type { Category } from "@/lib/types";
 import { isStripeEnabled } from "@/lib/stripe";
@@ -10,10 +10,10 @@ export default async function PosPage({
   searchParams: Promise<{ canceled?: string; stripe_error?: string }>;
 }) {
   const { canceled, stripe_error } = await searchParams;
-  const business = (await getCurrentBusiness())!;
+  const { business, role } = (await getMembership())!;
   const supabase = await createClient();
 
-  const [productsRes, stockRes, catRes, taxRes] = await Promise.all([
+  const [productsRes, stockRes, catRes, tax] = await Promise.all([
     supabase
       .from("products")
       .select("id,code,barcode,name,category_id,unit,selling_price")
@@ -23,7 +23,7 @@ export default async function PosPage({
       .order("name"),
     supabase.from("product_stock").select("product_id,sellable_quantity").eq("business_id", business.id),
     supabase.from("categories").select("id,name").eq("business_id", business.id).order("name"),
-    supabase.from("businesses").select("tax_rate").eq("id", business.id).single(),
+    getTaxSettings(business.id),
   ]);
 
   const stock = new Map(
@@ -62,12 +62,15 @@ export default async function PosPage({
       <PosClient
         business={{ id: business.id, name: business.name, location: business.location, contact_phone: business.contact_phone }}
         currency={business.currency}
-        taxRate={Number((taxRes.data as { tax_rate: number } | null)?.tax_rate ?? 0)}
+        taxRate={tax.rate}
+        taxName={tax.name}
+        taxInclusive={tax.inclusive}
         products={products}
         categories={(catRes.data ?? []) as Category[]}
         stripeEnabled={isStripeEnabled()}
         notice={stripe_error ? stripe_error.slice(0, 600) : null}
         restoreCart={canceled === "1" || !!stripe_error}
+        canEditTax={role === "owner"}
       />
     </>
   );

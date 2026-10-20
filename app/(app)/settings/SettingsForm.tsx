@@ -8,7 +8,7 @@ import type { Business } from "@/lib/business";
 
 const CURRENCIES = ["PHP", "USD", "SGD", "EUR", "GBP", "JPY", "AUD", "CAD", "HKD", "MYR", "THB", "IDR", "VND", "INR"];
 
-export default function SettingsForm({ business, taxRate }: { business: Business; taxRate: number }) {
+export default function SettingsForm({ business }: { business: Business }) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -18,7 +18,6 @@ export default function SettingsForm({ business, taxRate }: { business: Business
   const [phone, setPhone] = useState(business.contact_phone ?? "");
   const [email, setEmail] = useState(business.contact_email ?? "");
   const [currency, setCurrency] = useState(business.currency);
-  const [tax, setTax] = useState(String(taxRate));
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +28,6 @@ export default function SettingsForm({ business, taxRate }: { business: Business
     setError(null);
     setSaved(false);
 
-    const taxNum = Number(tax || 0);
-    if (!(taxNum >= 0 && taxNum <= 100)) return setError("Tax rate must be between 0 and 100.");
     if (!name.trim()) return setError("Business name is required.");
 
     setLoading(true);
@@ -43,7 +40,6 @@ export default function SettingsForm({ business, taxRate }: { business: Business
         contact_phone: phone.trim() || null,
         contact_email: email.trim() || null,
         currency,
-        tax_rate: taxNum,
       })
       .eq("id", business.id);
     setLoading(false);
@@ -90,12 +86,6 @@ export default function SettingsForm({ business, taxRate }: { business: Business
           <select id="currency" className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             {currencies.map((c) => <option key={c}>{c}</option>)}
           </select>
-        </div>
-        <div className="field">
-          <label htmlFor="tax">Tax rate (%)</label>
-          <input id="tax" className="input" type="number" min={0} max={100} step="0.01" value={tax}
-            onChange={(e) => setTax(e.target.value)} />
-          <span className="hint">Added on top of selling prices at checkout. Use 0 if prices already include tax.</span>
         </div>
       </div>
 
