@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentBusiness } from "@/lib/business";
+import { getMembership } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/format";
 import LocalTime from "@/components/LocalTime";
@@ -13,10 +13,11 @@ type SaleRow = {
   payments: { method: string }[];
 };
 
-const METHOD_LABEL: Record<string, string> = { cash: "Cash", card: "Card", ewallet: "E-wallet", stripe: "Card (online)" };
+const METHOD_LABEL: Record<string, string> = { cash: "Cash", card: "Card", ewallet: "E-wallet", stripe: "Online" };
 
 export default async function SalesPage() {
-  const business = (await getCurrentBusiness())!;
+  const { business, role } = (await getMembership())!;
+  const isCashier = role === "cashier";
   const supabase = await createClient();
 
   const { data } = await supabase
@@ -34,8 +35,12 @@ export default async function SalesPage() {
     <>
       <div className="page-head">
         <div>
-          <h2>Sales</h2>
-          <p>Your 50 most recent sales. Open one to reprint the receipt or void it.</p>
+          <h2>{isCashier ? "My sales" : "Sales"}</h2>
+          <p>
+            {isCashier
+              ? "The last 50 sales you rang up. Open one to reprint the receipt."
+              : "Your 50 most recent sales. Open one to reprint the receipt or void it."}
+          </p>
         </div>
         <Link href="/pos" className="btn btn-primary">Open POS</Link>
       </div>

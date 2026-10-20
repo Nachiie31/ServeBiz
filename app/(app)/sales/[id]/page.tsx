@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentBusiness } from "@/lib/business";
+import { getMembership, getTaxSettings } from "@/lib/business";
+import { canManage } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import Receipt, { type ReceiptData } from "@/components/Receipt";
 import PrintButton from "./PrintButton";
@@ -15,7 +16,8 @@ export default async function SaleDetail({
 }) {
   const { id } = await params;
   const { paid } = await searchParams;
-  const business = (await getCurrentBusiness())!;
+  const { business, role } = (await getMembership())!;
+  const taxSettings = await getTaxSettings(business.id);
   const supabase = await createClient();
 
   const { data: sale } = await supabase
@@ -54,15 +56,19 @@ export default async function SaleDetail({
       </div>
 
       {paid === "1" && (
-        <div className="alert" style={{ maxWidth: 380 }}>Card payment received. The sale is recorded and stock updated.</div>
+        <div className="alert" style={{ maxWidth: 380 }}>Online payment received. The sale is recorded and stock updated.</div>
       )}
 
       <div style={{ maxWidth: 380 }}>
-        {paid === "1" && <div className="alert">Payment received through Stripe and the sale was recorded.</div>}
-        <Receipt business={business} currency={business.currency} data={data} />
+        <Receipt
+          business={business}
+          currency={business.currency}
+          data={data}
+          taxLabel={taxSettings.rate > 0 ? `${taxSettings.name} (${taxSettings.rate}%${taxSettings.inclusive ? ", included" : ""})` : taxSettings.name}
+        />
         <div className="modal-actions">
           <PrintButton />
-          {data.status === "completed" && <VoidButton saleId={id} />}
+          {data.status === "completed" && canManage(role) && <VoidButton saleId={id} />}
         </div>
       </div>
     </>

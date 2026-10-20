@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { cartToMetadata, getStripe, toMinorUnits } from "@/lib/stripe";
 
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: quoteErr.message.includes("quote_sale")
-          ? "The Stripe functions are missing. Run supabase/migrations/004_stripe.sql in Supabase first."
+          ? "The payment functions are missing. Run supabase/migrations/004_stripe.sql, then 005_reports_tax.sql, in Supabase first."
           : quoteErr.message,
       },
       { status: 400 }
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
   }
   const q = (quote as { total: number }[] | null)?.[0];
   if (!q || !(q.total > 0)) {
-    return NextResponse.json({ error: "The total must be greater than 0 to pay by card." }, { status: 400 });
+    return NextResponse.json({ error: "The total must be greater than 0 to pay online." }, { status: 400 });
   }
 
   const { data: business } = await supabase.from("businesses").select("name,currency").eq("id", businessId).single();
@@ -63,32 +64,36 @@ export async function POST(request: Request) {
   const origin = new URL(request.url).origin;
   const count = items.reduce((n, i) => n + i.quantity, 0);
 
-  try {
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: business.currency.toLowerCase(),
-            unit_amount: toMinorUnits(q.total, business.currency),
-            product_data: {
-              name: `Order at ${business.name}`,
-              description: `${count} item${count === 1 ? "" : "s"}`,
-            },
+  const params: Stripe.Checkout.SessionCreateParams = {
+    mode: "payment",
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: business.currency.toLowerCase(),
+          unit_amount: toMinorUnits(q.total, business.currency),
+          product_data: {
+            name: `Order at ${business.name}`,
+            description: `${count} item${count === 1 ? "" : "s"}`,
           },
         },
-      ],
-      success_url: `${origin}/pos/stripe-return?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/pos?canceled=1`,
-      metadata: {
-        user_id: user.id,
-        business_id: businessId,
-        discount_type: discountType,
-        discount_value: String(discountValue),
-        ...cartToMetadata(items),
       },
-    });
+    ],
+    success_url: `${origin}/pos/stripe-return?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/pos?canceled=1`,
+    metadata: {
+      user_id: user.id,
+      business_id: businessId,
+      discount_type: discountType,
+      discount_value: String(discountValue),
+      ...cartToMetadata(items),
+    },
+  };
+
+  try {
+    // Payment methods are chosen by Stripe automatically: card, plus GCash (PHP only) and any other
+    // method switched on in Dashboard -> Settings -> Payment methods. Nothing to list here.
+    const session = await stripe.checkout.sessions.create(params);
     return NextResponse.json({ url: session.url });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Stripe could not start the payment.";

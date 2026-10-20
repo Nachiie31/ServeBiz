@@ -3,6 +3,7 @@ import { getCurrentBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { daysUntil, formatDate, formatMoney } from "@/lib/format";
 import type { Batch, Product, StockRow } from "@/lib/types";
+import SalesPanel from "./SalesPanel";
 
 const EXPIRY_WINDOW_DAYS = 30;
 
@@ -10,7 +11,7 @@ export default async function Dashboard() {
   const business = (await getCurrentBusiness())!;
   const supabase = await createClient();
 
-  const [productsRes, stockRes, batchesRes] = await Promise.all([
+  const [productsRes, stockRes, batchesRes, totalsRes] = await Promise.all([
     supabase.from("products").select("id,code,name,selling_price,reorder_level,is_active").eq("business_id", business.id),
     supabase.from("product_stock").select("product_id,total_quantity,nearest_expiry").eq("business_id", business.id),
     supabase
@@ -18,7 +19,13 @@ export default async function Dashboard() {
       .select("id,product_id,expiry_date,quantity_remaining,base_price,batch_no")
       .eq("business_id", business.id)
       .gt("quantity_remaining", 0),
+    supabase.rpc("sales_totals", { p_business_id: business.id }),
   ]);
+
+  // All-time income: net sales (what customers paid minus tax), completed sales only.
+  const totals = ((totalsRes.data ?? []) as { income: number; sale_count: number }[])[0];
+  const totalIncome = totals ? Number(totals.income) : null;
+  const totalSales = totals ? Number(totals.sale_count) : 0;
 
   const products = (productsRes.data ?? []) as Pick<Product, "id" | "code" | "name" | "selling_price" | "reorder_level" | "is_active">[];
   const stock = (stockRes.data ?? []) as StockRow[];
@@ -52,6 +59,13 @@ export default async function Dashboard() {
       </div>
 
       <div className="stats">
+        <div className="stat">
+          <div className="label">Total income</div>
+          <div className="value">{totalIncome === null ? "-" : formatMoney(totalIncome, business.currency)}</div>
+          <div className="sub">
+            {totalIncome === null ? "Run migration 005 to see this" : `${totalSales} sale${totalSales === 1 ? "" : "s"}, before tax`}
+          </div>
+        </div>
         <div className="stat"><div className="label">Products</div><div className="value">{products.length}</div></div>
         <div className="stat"><div className="label">Units in stock</div><div className="value">{unitsInStock}</div></div>
         <div className="stat"><div className="label">Stock value (at cost)</div><div className="value">{formatMoney(inventoryValue, business.currency)}</div></div>
@@ -72,6 +86,8 @@ export default async function Dashboard() {
           <Link href="/inventory/products?filter=pricing"><strong>Set prices</strong></Link>
         </div>
       )}
+
+      <SalesPanel businessId={business.id} currency={business.currency} />
 
       <div className="two-col">
         <section className="section">

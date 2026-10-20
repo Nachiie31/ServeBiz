@@ -21,7 +21,9 @@ export async function GET(request: Request) {
 
   let session;
   try {
-    session = await stripe.checkout.sessions.retrieve(sessionId);
+    session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["payment_intent.payment_method"],
+    });
   } catch {
     return fail("Could not confirm the card payment with Stripe.");
   }
@@ -29,8 +31,13 @@ export async function GET(request: Request) {
   if (session.payment_status !== "paid") return fail("The card payment was not completed. No sale was recorded.");
   if (session.metadata?.user_id !== user.id) return fail("This payment belongs to a different login.");
 
-  const paymentIntent =
-    typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+  const intent = typeof session.payment_intent === "string" ? null : session.payment_intent;
+  const paymentIntent = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+
+  // Which method the customer actually used (card, gcash, ...), kept on the payment record.
+  const pm = intent && typeof intent.payment_method !== "string" ? intent.payment_method : null;
+  const LABELS: Record<string, string> = { card: "Card", gcash: "GCash", grabpay: "GrabPay", paymaya: "Maya" };
+  const methodLabel = pm?.type ? LABELS[pm.type] ?? pm.type : "Online";
   const businessId = session.metadata?.business_id;
   if (!paymentIntent || !businessId) return fail("The payment is missing details. No sale was recorded.");
 
@@ -57,7 +64,7 @@ export async function GET(request: Request) {
     p_discount_value: Number(session.metadata?.discount_value ?? 0),
     p_method: "stripe",
     p_tendered: null,
-    p_reference: paymentIntent,
+    p_reference: `${methodLabel} · ${paymentIntent}`,
     p_stripe_pi: paymentIntent,
   });
 

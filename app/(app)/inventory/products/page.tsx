@@ -3,7 +3,6 @@ import { getCurrentBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Category, Product, StockRow } from "@/lib/types";
-import QuickPrice from "./QuickPrice";
 
 type SearchParams = Promise<{ q?: string; filter?: string }>;
 
@@ -106,13 +105,11 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                     <td>{p.category_id ? categories.get(p.category_id) ?? "-" : "-"}</td>
                     <td className="num">{qty} {p.unit}</td>
                     <td className="num">
-                      <QuickPrice
-                        key={`${p.id}-${p.selling_price}`}
-                        productId={p.id}
-                        price={p.selling_price}
-                        isActive={p.is_active}
-                        latestCost={latestCost.get(p.id) ?? null}
-                      />
+                      {p.selling_price > 0 ? (
+                        formatMoney(p.selling_price, business.currency)
+                      ) : (
+                        <Link href={`/inventory/products/${p.id}`}>Set price</Link>
+                      )}
                       {latestCost.has(p.id) && (
                         <div className="muted" style={{ fontSize: 12 }}>cost {formatMoney(latestCost.get(p.id)!, business.currency)}</div>
                       )}

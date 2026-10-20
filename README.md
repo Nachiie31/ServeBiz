@@ -4,7 +4,7 @@ Next.js + Supabase. See `PLAN.md` for the full roadmap.
 
 ## Run it
 1. Create a free project at supabase.com.
-2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`.
+2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`. Each is safe to run again.
 3. Authentication -> Sign In / Providers -> turn on **Allow anonymous sign-ins** (guest login). Turn off CAPTCHA protection until the app sends a CAPTCHA token.
 4. For quick testing, turn off "Confirm email" under the Email provider.
 5. Copy `.env.example` to `.env.local` and fill in the project URL and anon key (Project Settings -> API).
@@ -35,5 +35,41 @@ Landing -> Login / Guest -> (no business yet) Onboarding -> Dashboard.
 
 Live keys (`sk_live_...`) are refused on purpose. Without a key, the Stripe button is simply hidden.
 
-## Next
-Reports, staff roles, guest demo data. See `PLAN.md`.
+### Paying online with GCash
+The POS has two payment choices: **Cash** and **Online (Stripe)**. The Stripe page chooses its payment methods automatically, so GCash appears once it is switched on in your Stripe account: Dashboard -> Settings -> Payment methods -> turn on **GCash**. It needs your business currency set to PHP in ServeBiz Settings, and Stripe only offers GCash to Philippines-based accounts. Until then the page shows card only. In test mode, GCash opens a Stripe test page where you choose to authorize or fail the payment. The receipt records which method the customer used.
+
+## Tax
+Settings -> **Tax**: set a name (VAT, Sales tax), a rate, and whether your prices already include tax. The POS applies it to every sale and the receipt shows it. The POS cart also has an **Add tax** shortcut that opens this setting.
+
+## Dashboard and reports
+The dashboard shows **Total income** (net sales, before tax, completed sales only) and a daily sales chart for 7, 30, or 90 days in your own timezone. **Reports** adds profit and top products.
+
+## Staff roles
+Settings are for the owner; day-to-day work is split by role.
+
+| | Owner | Manager | Cashier |
+|---|---|---|---|
+| Ring up sales, reprint own receipts | yes | yes | yes |
+| See everyone's sales, void a sale | yes | yes | no |
+| Receive stock, edit products/prices, suppliers | yes | yes | no |
+| See costs, reports, profit | yes | yes | no |
+| Business details, tax, currency | yes | no | no |
+| Invite and remove staff | yes | no | no |
+
+- **Team** page (owner): invite by email with a role, change roles, remove people, cancel invites. Nothing is emailed from the app, so tell the person to sign up or log in with that exact email; they join automatically. The email must be confirmed, so keep **Confirm email** ON in production.
+- Cashiers land on the POS and only see their own sales. They never see costs or profit.
+- The limits are enforced in the database (Row Level Security and checked functions in `006_roles.sql`), so they hold even if someone skips the app and calls the API directly.
+- One business per login for now. If someone already created their own business, an invite to another one will not move them; have them use a different email.
+- Without migration 006 the app still works and everyone behaves as an owner.
+
+## Guest demo store
+"Continue as guest" gives each visitor a private, populated shop (`007_demo.sql`): 17 products, 3 suppliers, stock batches with one near expiry and one expired, a month of sales (cash and online), two voided sales, a product that still needs pricing, and low-stock alerts. A banner offers **Reset demo**. Without migration 007, guests get the normal empty-business setup instead.
+
+Clean up old guests so they do not pile up (they are real accounts in Supabase):
+- run `select public.purge_old_demos(24);` in the SQL Editor now and then, or
+- schedule that same statement in Supabase (Integrations -> Cron).
+
+Before sharing the site publicly, turn CAPTCHA protection on (and add a CAPTCHA widget to the login page), otherwise bots can create guest accounts freely.
+
+## Ideas for later
+Multiple businesses per login, CSV import/export, purchase orders, refunds for partly returned sales. See `PLAN.md`.
