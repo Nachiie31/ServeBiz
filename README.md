@@ -4,7 +4,7 @@ Next.js + Supabase. See `PLAN.md` for the full roadmap.
 
 ## Run it
 1. Create a free project at supabase.com.
-2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`, `008_branches.sql`, `009_audit_overview.sql`, `010_refunds.sql`. Each is safe to run again. **008 is required** by the businesses/branches, paging and invite rules below; 009 adds the audit log and All branches page.
+2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`, `008_branches.sql`, `009_audit_overview.sql`, `010_refunds.sql`, `011_purchase_orders.sql`. Each is safe to run again. **008 is required** by the businesses/branches, paging and invite rules below; 009 adds the audit log and All branches page.
 3. Authentication -> Sign In / Providers -> turn on **Allow anonymous sign-ins** (guest login). Leave CAPTCHA protection off until you set up the CAPTCHA key below (otherwise Supabase rejects every login).
 4. For quick testing, turn off "Confirm email" under the Email provider.
 5. Copy `.env.example` to `.env.local` and fill in the project URL and anon key (Project Settings -> API).
@@ -112,4 +112,7 @@ Number boxes reject `e`, `+`, `-` (and `.` for whole numbers), including paste. 
 
 ## Partial refunds (migration 010)
 On a completed sale, owners and managers get **Refund items**: pick how many of each item to take back. Discount and tax are refunded in proportion (the last refund pays the exact remainder), and the stock goes back into the batches it came from. A sale refunded in full becomes **Refunded**. Dashboard, reports and the All branches page subtract refunds on the day they are made. A sale that already has refunds can no longer be voided (refund the rest instead). The app records the refund but does not move money: hand cash back, or refund online payments in your Stripe dashboard.
+
+## Purchase orders (migration 011, owners and managers)
+**Inventory > Purchase orders**: create an order (supplier, expected date, items with code, name, quantity and unit cost; numbered PO-0001, PO-0002 per business). When goods arrive, open the order and **Receive delivery**: enter the quantities (expiry and batch optional). Each line becomes a stock batch at the ordered cost, exactly like Receiving, and you can receive an order in several parts. Orders show as Ordered, Partly received or Received; an order nothing arrived for can be cancelled, and a partly received one can be closed. Orders are recorded in the audit log.
 
