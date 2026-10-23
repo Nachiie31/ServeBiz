@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import NumberInput from "@/components/NumberInput";
 
 type Props = {
   productId: string;
@@ -75,7 +76,7 @@ export default function AdjustStockForm({ productId, total, batches }: Props) {
         </div>
         <div className="field">
           <label htmlFor="adj-qty">Quantity to remove</label>
-          <input id="adj-qty" className="input" type="number" min={1} max={total} step={1} required
+          <NumberInput integer id="adj-qty" className="input" min={1} max={total} required
             value={quantity} onChange={(e) => setQuantity(e.target.value)} />
         </div>
       </div>

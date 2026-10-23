@@ -6,6 +6,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { todayISO } from "@/lib/format";
 import type { Supplier } from "@/lib/types";
+import NumberInput from "@/components/NumberInput";
 
 type Props = {
   businessId: string;
@@ -197,13 +198,13 @@ export default function ReceivingForm({ businessId, suppliers, products }: Props
 
         <div className="field">
           <label htmlFor="qty">Quantity received</label>
-          <input id="qty" className="input" type="number" min={1} step={1} required value={quantity}
+          <NumberInput integer id="qty" className="input" min={1} required value={quantity}
             onChange={(e) => setQuantity(e.target.value)} />
         </div>
 
         <div className="field">
           <label htmlFor="price">Base price per unit (your cost)</label>
-          <input id="price" className="input" type="number" min={0} step="0.01" required value={basePrice}
+          <NumberInput id="price" className="input" min={0} step="0.01" required value={basePrice}
             onChange={(e) => setBasePrice(e.target.value)} />
         </div>
 
@@ -213,7 +214,7 @@ export default function ReceivingForm({ businessId, suppliers, products }: Props
             <input id="sell" className="input" value={`Already priced at ${existing!.selling_price}`} readOnly />
           ) : (
             <>
-              <input id="sell" className="input" type="number" min={0} step="0.01" value={sellingPrice}
+              <NumberInput id="sell" className="input" min={0} step="0.01" value={sellingPrice}
                 onChange={(e) => setSellingPrice(e.target.value)} placeholder="Set now or later in Products" />
               <span className="hint">
                 Markup on cost:{" "}

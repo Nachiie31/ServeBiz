@@ -3,6 +3,7 @@ import { getCurrentBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { daysUntil, formatDate, formatMoney } from "@/lib/format";
 import type { Batch, Product, StockRow } from "@/lib/types";
+import { fetchAll } from "@/lib/paging";
 import SalesPanel from "./SalesPanel";
 
 const EXPIRY_WINDOW_DAYS = 30;
@@ -11,14 +12,17 @@ export default async function Dashboard() {
   const business = (await getCurrentBusiness())!;
   const supabase = await createClient();
 
-  const [productsRes, stockRes, batchesRes, totalsRes] = await Promise.all([
-    supabase.from("products").select("id,code,name,selling_price,reorder_level,is_active").eq("business_id", business.id),
-    supabase.from("product_stock").select("product_id,total_quantity,nearest_expiry").eq("business_id", business.id),
-    supabase
-      .from("stock_batches")
-      .select("id,product_id,expiry_date,quantity_remaining,base_price,batch_no")
-      .eq("business_id", business.id)
-      .gt("quantity_remaining", 0),
+  // Read every row, not just the first 1000 the API returns by default.
+  const [productsData, stockData, batchesData, totalsRes] = await Promise.all([
+    fetchAll((a, b) =>
+      supabase.from("products").select("id,code,name,selling_price,reorder_level,is_active")
+        .eq("business_id", business.id).order("id").range(a, b)),
+    fetchAll((a, b) =>
+      supabase.from("product_stock").select("product_id,total_quantity,nearest_expiry")
+        .eq("business_id", business.id).order("product_id").range(a, b)),
+    fetchAll((a, b) =>
+      supabase.from("stock_batches").select("id,product_id,expiry_date,quantity_remaining,base_price,batch_no")
+        .eq("business_id", business.id).gt("quantity_remaining", 0).order("id").range(a, b)),
     supabase.rpc("sales_totals", { p_business_id: business.id }),
   ]);
 
@@ -27,9 +31,9 @@ export default async function Dashboard() {
   const totalIncome = totals ? Number(totals.income) : null;
   const totalSales = totals ? Number(totals.sale_count) : 0;
 
-  const products = (productsRes.data ?? []) as Pick<Product, "id" | "code" | "name" | "selling_price" | "reorder_level" | "is_active">[];
-  const stock = (stockRes.data ?? []) as StockRow[];
-  const batches = (batchesRes.data ?? []) as Pick<Batch, "id" | "product_id" | "expiry_date" | "quantity_remaining" | "base_price" | "batch_no">[];
+  const products = (productsData ?? []) as Pick<Product, "id" | "code" | "name" | "selling_price" | "reorder_level" | "is_active">[];
+  const stock = (stockData ?? []) as StockRow[];
+  const batches = (batchesData ?? []) as Pick<Batch, "id" | "product_id" | "expiry_date" | "quantity_remaining" | "base_price" | "batch_no">[];
 
   const qty = new Map(stock.map((s) => [s.product_id, s.total_quantity]));
   const byId = new Map(products.map((p) => [p.id, p]));

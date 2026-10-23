@@ -50,6 +50,11 @@ export default async function TeamPage() {
         </div>
       )}
 
+      <div className="alert">
+        You are managing the team of <strong>{business.branch_name ? `${business.branch_name} branch` : business.name}</strong>. A person can
+        belong to several branches of the same business, but an email that already belongs to a <em>different</em> business cannot be invited.
+      </div>
+
       <TeamClient businessId={business.id} currentUserId={userId} members={members} invites={invites} disabled={needsMigration} />
 
       <section className="section" style={{ marginTop: 28 }}>

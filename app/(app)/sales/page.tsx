@@ -2,6 +2,9 @@ import Link from "next/link";
 import { getMembership } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/format";
+import { redirect } from "next/navigation";
+import Paginator from "@/components/Paginator";
+import { PAGE_SIZE, pageCount, parsePage } from "@/lib/paging";
 import LocalTime from "@/components/LocalTime";
 
 type SaleRow = {
@@ -15,17 +18,22 @@ type SaleRow = {
 
 const METHOD_LABEL: Record<string, string> = { cash: "Cash", card: "Card", ewallet: "E-wallet", stripe: "Online" };
 
-export default async function SalesPage() {
+export default async function SalesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const page = parsePage((await searchParams).page);
   const { business, role } = (await getMembership())!;
   const isCashier = role === "cashier";
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const from = (page - 1) * PAGE_SIZE;
+  const { data, count } = await supabase
     .from("sales")
-    .select("id,receipt_no,created_at,total,status,payments(method)")
+    .select("id,receipt_no,created_at,total,status,payments(method)", { count: "exact" })
     .eq("business_id", business.id)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .order("id", { ascending: false })
+    .range(from, from + PAGE_SIZE - 1);
+  const total = count ?? 0;
+  if (page > 1 && page > pageCount(total)) redirect(`/sales${pageCount(total) > 1 ? `?page=${pageCount(total)}` : ""}`);
 
   const sales = (data ?? []) as unknown as SaleRow[];
   const completed = sales.filter((s) => s.status === "completed");
@@ -38,8 +46,8 @@ export default async function SalesPage() {
           <h2>{isCashier ? "My sales" : "Sales"}</h2>
           <p>
             {isCashier
-              ? "The last 50 sales you rang up. Open one to reprint the receipt."
-              : "Your 50 most recent sales. Open one to reprint the receipt or void it."}
+              ? "Sales you rang up, newest first. Open one to reprint the receipt."
+              : "All sales, newest first. Open one to reprint the receipt or void it."}
           </p>
         </div>
         <div className="head-actions">
@@ -49,8 +57,8 @@ export default async function SalesPage() {
       </div>
 
       <div className="stats">
-        <div className="stat"><div className="label">Completed sales (shown)</div><div className="value">{completed.length}</div></div>
-        <div className="stat"><div className="label">Revenue (shown)</div><div className="value">{formatMoney(revenue, business.currency)}</div></div>
+        <div className="stat"><div className="label">Completed (this page)</div><div className="value">{completed.length}</div></div>
+        <div className="stat"><div className="label">Revenue (this page)</div><div className="value">{formatMoney(revenue, business.currency)}</div></div>
       </div>
 
       <div className="table-wrap">
@@ -79,6 +87,7 @@ export default async function SalesPage() {
           </table>
         )}
       </div>
+      <Paginator basePath="/sales" page={page} total={total} pageSize={PAGE_SIZE} noun="sales" />
     </>
   );
 }

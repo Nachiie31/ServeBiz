@@ -4,7 +4,7 @@ Next.js + Supabase. See `PLAN.md` for the full roadmap.
 
 ## Run it
 1. Create a free project at supabase.com.
-2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`. Each is safe to run again.
+2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`, `008_branches.sql`, `009_audit_overview.sql`. Each is safe to run again. **008 is required** by the businesses/branches, paging and invite rules below; 009 adds the audit log and All branches page.
 3. Authentication -> Sign In / Providers -> turn on **Allow anonymous sign-ins** (guest login). Leave CAPTCHA protection off until you set up the CAPTCHA key below (otherwise Supabase rejects every login).
 4. For quick testing, turn off "Confirm email" under the Email provider.
 5. Copy `.env.example` to `.env.local` and fill in the project URL and anon key (Project Settings -> API).
@@ -84,3 +84,26 @@ Products page: **Export products** (prices, cost, stock) and **Export stock batc
 
 ## Ideas for later
 Multiple businesses per login, CSV import, purchase orders, refunds for partly returned sales. See `PLAN.md`.
+
+## Multiple businesses and branches (migration 008)
+- A registered user can own several businesses. Each business can have several branches. **Each branch has its own products, stock, sales, tax and team**; roles are per branch.
+- Switch from the dropdown at the top of the sidebar, or on **My businesses**. Owners add branches there (tax and currency are copied from the branch they start from); **+ New business** starts a separate business.
+- **Invite rule:** an email that already belongs to (or has a pending invite from) a *different* business cannot be invited. The same email can be invited to other branches of *your own* business. Existing invites from another business stay pending and are skipped on login.
+- Limits: 10 businesses per person, 20 branches per business. Guest demos keep one sample business.
+- Note: the rule restricts invites only. A staff member can still create their own new business.
+
+## Password rules
+New accounts need 8-64 characters with an uppercase letter, a number and a special character, and no spaces (live checklist on the sign-up form). Supabase enforces its own minimum too (Authentication > Sign In / Providers > Email) - set it to match if you want the server to refuse weaker passwords.
+
+## Pagination and large data
+Products (server-side search and filter), sales, suppliers, recent deliveries and stock history show 25 per page with `?page=`; the POS grid pages 24 tiles at a time. The dashboard, POS and CSV exports read all rows (Supabase returns 1000 per request by default, which is now handled).
+
+## Inputs
+Number boxes reject `e`, `+`, `-` (and `.` for whole numbers), including paste. In the POS you can type a quantity or use the - / + buttons; it is capped at the stock on hand.
+
+## All-branches overview (owners)
+**All branches** (sidebar, shown when you own more than one branch of a business) compares income, orders, profit, stock value and low/out-of-stock counts per branch for the last 7/30/90 days or all time. Only branches you own are included; managers and cashiers never see other branches. If branches use different currencies, combined totals are hidden.
+
+## Audit log (owners)
+**Audit log** lists who changed what in the current branch: product creation, price and detail edits, deletions, stock receipts and adjustments, voided sales, team joins/role changes/removals, invites, and tax/business settings. Entries are written by database triggers, cannot be edited or deleted from the app, and are filtered and paged. Ordinary sales are not repeated here (see Sales). Demo seeding is not logged.
+

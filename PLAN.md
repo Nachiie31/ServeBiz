@@ -11,7 +11,9 @@
 | 4. Staff roles (owner, manager, cashier) | Done |
 | 4. Guest demo data | Done |
 | CAPTCHA on login (Turnstile), CSV export | Done |
-| Later: multi-business switcher, CSV import, pagination, purchase orders, partial refunds, audit log, PWA/offline | Not started |
+| Multi-business + branches, invite rule, password rules, pagination, typable POS qty | Done (migration 008) |
+| All-branches overview, audit log | Done (migration 009) |
+| Later: CSV import, purchase orders, partial refunds, PWA/offline | Not started |
 
 Stack: Next.js (App Router, TypeScript) + Supabase (Auth, Postgres, Storage) + Stripe (test mode). Deployed online (Vercel + Supabase).
 

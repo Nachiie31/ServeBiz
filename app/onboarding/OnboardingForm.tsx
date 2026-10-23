@@ -3,11 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { rememberBusiness } from "@/app/(app)/businesses/actions";
 import { BUSINESS_TYPES } from "@/lib/business-types";
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
-export default function OnboardingForm() {
+export default function OnboardingForm({ another = false }: { another?: boolean }) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -16,6 +17,7 @@ export default function OnboardingForm() {
   const [location, setLocation] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [branch, setBranch] = useState("");
   const [logo, setLogo] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,13 +59,14 @@ export default function OnboardingForm() {
       logoUrl = supabase.storage.from("logos").getPublicUrl(path).data.publicUrl;
     }
 
-    const { error: rpcError } = await supabase.rpc("create_business", {
+    const { data: newId, error: rpcError } = await supabase.rpc("create_business", {
       p_name: name.trim(),
       p_type: type,
       p_logo_url: logoUrl,
       p_location: location.trim() || null,
       p_phone: phone.trim() || null,
       p_email: email.trim() || null,
+      p_branch_name: branch.trim() || null,
     });
 
     if (rpcError) {
@@ -72,6 +75,7 @@ export default function OnboardingForm() {
       return;
     }
 
+    if (newId) await rememberBusiness(String(newId));
     router.push("/dashboard");
     router.refresh();
   }
@@ -79,13 +83,19 @@ export default function OnboardingForm() {
   return (
     <div className="auth-wrap">
       <div className="card auth-card" style={{ maxWidth: 520 }}>
-        <h1>Set up your business</h1>
+        <h1>{another ? "Add a new business" : "Set up your business"}</h1>
         <p className="sub">Tell us about your business. You can change these details later in settings.</p>
 
+        {another && <p className="sub">A separate business has its own branches, products, sales and team.</p>}
         <form onSubmit={onSubmit}>
           <div className="field">
             <label htmlFor="name">Business name</label>
             <input id="name" className="input" required value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          <div className="field">
+            <label htmlFor="branch">First branch name <span className="hint">(optional, e.g. Downtown)</span></label>
+            <input id="branch" className="input" maxLength={60} value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="Main branch" />
           </div>
 
           <div className="field">

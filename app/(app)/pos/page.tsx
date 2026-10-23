@@ -2,6 +2,7 @@ import { getMembership, getTaxSettings } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import type { Category } from "@/lib/types";
 import { isStripeEnabled } from "@/lib/stripe";
+import { fetchAll } from "@/lib/paging";
 import PosClient, { type PosProduct } from "./PosClient";
 
 export default async function PosPage({
@@ -13,15 +14,27 @@ export default async function PosPage({
   const { business, role } = (await getMembership())!;
   const supabase = await createClient();
 
-  const [productsRes, stockRes, catRes, tax] = await Promise.all([
-    supabase
-      .from("products")
-      .select("id,code,barcode,name,category_id,unit,selling_price")
-      .eq("business_id", business.id)
-      .eq("is_active", true)
-      .gt("selling_price", 0)
-      .order("name"),
-    supabase.from("product_stock").select("product_id,sellable_quantity").eq("business_id", business.id),
+  const [productsData, stockRes, catRes, tax] = await Promise.all([
+    fetchAll((a, b) =>
+      supabase
+        .from("products")
+        .select("id,code,barcode,name,category_id,unit,selling_price")
+        .eq("business_id", business.id)
+        .eq("is_active", true)
+        .gt("selling_price", 0)
+        .order("name")
+        .order("id")
+        .range(a, b)),
+    (async () => {
+      try {
+        const data = await fetchAll((a, b) =>
+          supabase.from("product_stock").select("product_id,sellable_quantity")
+            .eq("business_id", business.id).order("product_id").range(a, b));
+        return { data, error: null as { message: string } | null };
+      } catch (e) {
+        return { data: null, error: { message: (e as Error).message } };
+      }
+    })(),
     supabase.from("categories").select("id,name").eq("business_id", business.id).order("name"),
     getTaxSettings(business.id),
   ]);
@@ -31,7 +44,7 @@ export default async function PosPage({
   );
 
   const products: PosProduct[] = (
-    (productsRes.data ?? []) as {
+    (productsData ?? []) as {
       id: string; code: string; barcode: string | null; name: string;
       category_id: string | null; unit: string; selling_price: number;
     }[]

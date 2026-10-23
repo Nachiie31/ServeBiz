@@ -3,6 +3,9 @@ import { getCurrentBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Supplier } from "@/lib/types";
+import { redirect } from "next/navigation";
+import Paginator from "@/components/Paginator";
+import { PAGE_SIZE, fetchAll, pageCount, parsePage } from "@/lib/paging";
 import ReceivingForm from "./ReceivingForm";
 
 type Receipt = {
@@ -17,23 +20,29 @@ type Receipt = {
   suppliers: { name: string } | null;
 };
 
-export default async function ReceivingPage() {
+export default async function ReceivingPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const page = parsePage((await searchParams).page);
+  const from = (page - 1) * PAGE_SIZE;
   const business = (await getCurrentBusiness())!;
   const supabase = await createClient();
 
   const [suppliersRes, productsRes, receiptsRes] = await Promise.all([
-    supabase.from("suppliers").select("id,name,contact").eq("business_id", business.id).order("name"),
-    supabase.from("products").select("code,name,selling_price").eq("business_id", business.id).order("name"),
+    fetchAll((a, b) => supabase.from("suppliers").select("id,name,contact").eq("business_id", business.id).order("name").order("id").range(a, b)),
+    // The product box suggests existing codes while typing; capped so the page stays light.
+    fetchAll((a, b) => supabase.from("products").select("code,name,selling_price").eq("business_id", business.id).order("name").order("id").range(a, b), 5000),
     supabase
       .from("stock_batches")
-      .select("id,date_received,expiry_date,quantity_received,quantity_remaining,base_price,batch_no,products(id,code,name),suppliers(name)")
+      .select("id,date_received,expiry_date,quantity_received,quantity_remaining,base_price,batch_no,products(id,code,name),suppliers(name)", { count: "exact" })
       .eq("business_id", business.id)
       .order("created_at", { ascending: false })
-      .limit(15),
+      .order("id", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1),
   ]);
+  const total = receiptsRes.count ?? 0;
+  if (page > 1 && page > pageCount(total)) redirect(`/inventory/receiving${pageCount(total) > 1 ? `?page=${pageCount(total)}` : ""}`);
 
-  const suppliers = (suppliersRes.data ?? []) as Supplier[];
-  const products = (productsRes.data ?? []) as { code: string; name: string; selling_price: number }[];
+  const suppliers = (suppliersRes ?? []) as Supplier[];
+  const products = (productsRes ?? []) as { code: string; name: string; selling_price: number }[];
   const receipts = (receiptsRes.data ?? []) as unknown as Receipt[];
 
   return (
@@ -84,6 +93,7 @@ export default async function ReceivingPage() {
             </table>
           )}
         </div>
+        <Paginator basePath="/inventory/receiving" page={page} total={total} pageSize={PAGE_SIZE} noun="deliveries" />
       </section>
     </>
   );

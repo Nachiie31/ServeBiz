@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import { formatMoney } from "@/lib/format";
 import Receipt, { type ReceiptData } from "@/components/Receipt";
 import type { Category } from "@/lib/types";
+import NumberInput from "@/components/NumberInput";
+import QtyInput from "./QtyInput";
 
 export type PosProduct = {
   id: string;
@@ -89,6 +91,13 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
       return `${p.name} ${p.code} ${p.barcode ?? ""}`.toLowerCase().includes(needle);
     });
   }, [products, query, categoryId]);
+
+  const TILES_PER_PAGE = 24;
+  const [tilePage, setTilePage] = useState(1);
+  useEffect(() => setTilePage(1), [query, categoryId]);
+  const tilePages = Math.max(1, Math.ceil(filtered.length / TILES_PER_PAGE));
+  const safeTilePage = Math.min(tilePage, tilePages);
+  const visible = filtered.slice((safeTilePage - 1) * TILES_PER_PAGE, safeTilePage * TILES_PER_PAGE);
 
   const lines = Object.entries(cart)
     .map(([id, qty]) => ({ product: byId.get(id)!, qty }))
@@ -279,7 +288,7 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
           <div className="card empty">No products match.</div>
         ) : (
           <div className="tiles">
-            {filtered.map((p) => {
+            {visible.map((p) => {
               const inCart = cart[p.id] ?? 0;
               const out = p.stock <= 0;
               return (
@@ -290,6 +299,13 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
                 </button>
               );
             })}
+          </div>
+        )}
+        {tilePages > 1 && (
+          <div className="pager" style={{ justifyContent: "center" }}>
+            <button className="btn" type="button" disabled={safeTilePage <= 1} onClick={() => setTilePage(safeTilePage - 1)}>Previous</button>
+            <span className="muted pager-info">Page {safeTilePage} of {tilePages} · {filtered.length} products</span>
+            <button className="btn" type="button" disabled={safeTilePage >= tilePages} onClick={() => setTilePage(safeTilePage + 1)}>Next</button>
           </div>
         )}
       </div>
@@ -309,7 +325,7 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
               <div className="amt">{money(p.price * qty)}</div>
               <div className="qty">
                 <button type="button" aria-label={`Decrease ${p.name}`} onClick={() => setQty(p.id, qty - 1)}>&minus;</button>
-                <span>{qty}</span>
+                <QtyInput value={qty} max={p.stock} label={p.name} onChange={(n) => setQty(p.id, n)} />
                 <button type="button" aria-label={`Increase ${p.name}`} disabled={qty >= p.stock} onClick={() => setQty(p.id, qty + 1)}>+</button>
                 <button type="button" className="remove" onClick={() => setQty(p.id, 0)}>Remove</button>
               </div>
@@ -324,7 +340,7 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
                 <option value="amount">Discount {currency}</option>
                 <option value="percent">Discount %</option>
               </select>
-              <input className="input" type="number" min={0} step="0.01" value={discountValue}
+              <NumberInput className="input" min={0} step="0.01" value={discountValue}
                 onChange={(e) => setDiscountValue(e.target.value)} placeholder="0" aria-label="Discount value" />
             </div>
 
@@ -374,7 +390,7 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
               <>
                 <div className="field" style={{ marginBottom: 8 }}>
                   <label htmlFor="tendered">Cash received</label>
-                  <input id="tendered" className="input" type="number" min={0} step="0.01" value={tendered}
+                  <NumberInput id="tendered" className="input" min={0} step="0.01" value={tendered}
                     onChange={(e) => setTendered(e.target.value)} placeholder={String(total)} />
                 </div>
                 <div className="quick">
