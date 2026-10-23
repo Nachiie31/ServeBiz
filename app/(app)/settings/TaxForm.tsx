@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatMoney } from "@/lib/format";
 import type { TaxSettings } from "@/lib/business";
+import NumberInput from "@/components/NumberInput";
 
 export default function TaxForm({ businessId, initial }: { businessId: string; initial: TaxSettings }) {
   const router = useRouter();
@@ -72,7 +73,7 @@ export default function TaxForm({ businessId, initial }: { businessId: string; i
         </div>
         <div className="field">
           <label htmlFor="tax-rate">Rate (%)</label>
-          <input id="tax-rate" className="input" type="number" min={0} max={100} step="0.01" value={rate}
+          <NumberInput id="tax-rate" className="input" min={0} max={100} step="0.01" value={rate}
             onChange={(e) => setRate(e.target.value)} />
         </div>
       </div>

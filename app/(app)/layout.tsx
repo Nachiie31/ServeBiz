@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { autoJoin, getMembership } from "@/lib/business";
+import { autoJoin, getAllMemberships, getMembership } from "@/lib/business";
 import { ROLE_LABEL } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import NavLinks from "@/components/NavLinks";
+import BusinessSwitcher, { type SwitcherGroup } from "@/components/BusinessSwitcher";
 import ResetDemoButton from "@/components/ResetDemoButton";
 import "../app.css";
 import "../pos.css";
@@ -30,6 +31,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
   const { business, role, isGuest } = membership;
 
+  const all = await getAllMemberships();
+  const groupMap = new Map<string, SwitcherGroup>();
+  for (const e of all) {
+    const key = e.business.organization_id ?? e.business.id;
+    const g = groupMap.get(key) ?? { name: e.organizationName, branches: [] };
+    g.branches.push({ id: e.business.id, label: e.business.branch_name ?? e.business.name });
+    groupMap.set(key, g);
+  }
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -48,7 +58,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        <NavLinks role={role} />
+        <BusinessSwitcher groups={[...groupMap.values()]} currentId={business.id} />
+        <NavLinks role={role} multiBranch={all.filter((e) => e.role === "owner" && e.business.organization_id === business.organization_id).length > 1} />
 
         <form action={signOut} className="sidebar-foot">
           <button className="btn btn-block" type="submit">

@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { isRole, type Role } from "@/lib/permissions";
 
@@ -11,7 +12,12 @@ export type Business = {
   contact_phone: string | null;
   contact_email: string | null;
   currency: string;
+  /** the business this branch belongs to (migration 008) */
+  organization_id?: string;
+  branch_name?: string;
 };
+
+export const BUSINESS_COOKIE = "servebiz_business";
 
 export type TaxSettings = {
   rate: number;
@@ -49,7 +55,61 @@ export type Membership = {
   isGuest: boolean;
 };
 
-/** Looks up the logged-in user's business and role. Not cached: use getMembership() in pages. */
+const BUSINESS_COLS = "id,name,business_type,logo_url,location,contact_phone,contact_email,currency,organization_id,branch_name";
+const BUSINESS_COLS_OLD = "id,name,business_type,logo_url,location,contact_phone,contact_email,currency";
+
+export type BranchEntry = { business: Business; role: Role; organizationName: string };
+
+/** Every branch the user belongs to (all their businesses), oldest first. */
+export async function getAllMemberships(): Promise<BranchEntry[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: rows } = await supabase
+    .from("business_members")
+    .select("business_id,role")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true })
+    .limit(500);
+  const members = (rows ?? []) as { business_id: string; role: string }[];
+  if (members.length === 0) return [];
+  const ids = members.map((m) => m.business_id);
+
+  let rowsB: unknown[] | null = null;
+  const res = await supabase.from("businesses").select(BUSINESS_COLS).in("id", ids);
+  if (!res.error) rowsB = res.data;
+  else rowsB = (await supabase.from("businesses").select(BUSINESS_COLS_OLD).in("id", ids)).data; // before migration 008
+  const businesses = (rowsB ?? []) as Business[];
+
+  const orgIds = [...new Set(businesses.map((b) => b.organization_id).filter(Boolean))] as string[];
+  const orgNames = new Map<string, string>();
+  if (orgIds.length > 0) {
+    const { data: orgs } = await supabase.from("organizations").select("id,name").in("id", orgIds);
+    for (const o of (orgs ?? []) as { id: string; name: string }[]) orgNames.set(o.id, o.name);
+  }
+
+  const byId = new Map(businesses.map((b) => [b.id, b]));
+  const out: BranchEntry[] = [];
+  for (const m of members) {
+    const business = byId.get(m.business_id);
+    if (!business) continue;
+    out.push({
+      business,
+      role: isRole(m.role) ? m.role : "cashier", // an unknown role gets the least access
+      organizationName: (business.organization_id && orgNames.get(business.organization_id)) || business.name,
+    });
+  }
+  return out;
+}
+
+/**
+ * Looks up the logged-in user's current business and role. The user can belong to several
+ * businesses and branches; the one they picked is remembered in a cookie. Not cached: use
+ * getMembership() in pages.
+ */
 export async function loadMembership(): Promise<Membership | null> {
   const supabase = await createClient();
   const {
@@ -57,26 +117,21 @@ export async function loadMembership(): Promise<Membership | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: memberships } = await supabase
-    .from("business_members")
-    .select("business_id,role")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1);
+  const all = await getAllMemberships();
+  if (all.length === 0) return null;
 
-  const row = memberships?.[0] as { business_id: string; role: string } | undefined;
-  if (!row) return null;
-
-  const { data } = await supabase
-    .from("businesses")
-    .select("id,name,business_type,logo_url,location,contact_phone,contact_email,currency")
-    .eq("id", row.business_id)
-    .single();
-  if (!data) return null;
+  let wanted: string | undefined;
+  try {
+    wanted = (await cookies()).get(BUSINESS_COOKIE)?.value;
+  } catch {
+    wanted = undefined;
+  }
+  // A stale or tampered cookie simply falls back to the first branch. RLS decides real access.
+  const chosen = all.find((e) => e.business.id === wanted) ?? all[0];
 
   return {
-    business: data as Business,
-    role: isRole(row.role) ? row.role : "cashier", // an unknown role gets the least access
+    business: chosen.business,
+    role: chosen.role,
     userId: user.id,
     isGuest: !!user.is_anonymous,
   };

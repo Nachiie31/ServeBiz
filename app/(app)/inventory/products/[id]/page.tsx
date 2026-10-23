@@ -4,6 +4,8 @@ import { getCurrentBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { daysUntil, formatDate, formatMoney } from "@/lib/format";
 import type { Batch, Category, Movement, Product } from "@/lib/types";
+import Paginator from "@/components/Paginator";
+import { PAGE_SIZE, parsePage } from "@/lib/paging";
 import LocalTime from "@/components/LocalTime";
 import ProductForm from "./ProductForm";
 import AdjustStockForm from "./AdjustStockForm";
@@ -17,8 +19,10 @@ const TYPE_LABEL: Record<string, string> = {
   damaged: "Damaged",
 };
 
-export default async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProductDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ mpage?: string }> }) {
   const { id } = await params;
+  const mpage = parsePage((await searchParams).mpage);
+  const mFrom = (mpage - 1) * PAGE_SIZE;
   const business = (await getCurrentBusiness())!;
   const supabase = await createClient();
 
@@ -40,10 +44,11 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
       .order("date_received", { ascending: false }),
     supabase
       .from("stock_movements")
-      .select("id,movement_type,quantity_change,reason,created_at")
+      .select("id,movement_type,quantity_change,reason,created_at", { count: "exact" })
       .eq("product_id", id)
       .order("created_at", { ascending: false })
-      .limit(15),
+      .order("id", { ascending: false })
+      .range(mFrom, mFrom + PAGE_SIZE - 1),
   ]);
 
   const categories = (catRes.data ?? []) as Category[];
@@ -148,6 +153,8 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
             </table>
           )}
         </div>
+        <Paginator basePath={`/inventory/products/${id}`} page={mpage} total={moveRes.count ?? 0} pageSize={PAGE_SIZE}
+          pageParam="mpage" noun="movements" />
       </section>
     </>
   );

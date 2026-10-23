@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatMoney } from "@/lib/format";
 import type { Category, Product } from "@/lib/types";
+import NumberInput from "@/components/NumberInput";
 
 const NEW_CATEGORY = "__new";
 const UNITS = ["pc", "pack", "box", "kg", "g", "L", "mL", "bottle", "can", "set"];
@@ -138,7 +139,7 @@ export default function ProductForm({ businessId, product, categories, latestCos
       <div className="form-grid">
         <div className="field">
           <label htmlFor="price">Selling price</label>
-          <input id="price" className="input" type="number" min={0} step="0.01" value={price}
+          <NumberInput id="price" className="input" min={0} step="0.01" value={price}
             onChange={(e) => setPrice(e.target.value)} />
           {latestCost !== null && (
             <span className="hint">
@@ -154,7 +155,7 @@ export default function ProductForm({ businessId, product, categories, latestCos
         </div>
         <div className="field">
           <label htmlFor="reorder">Reorder level</label>
-          <input id="reorder" className="input" type="number" min={0} step={1} value={reorder}
+          <NumberInput integer id="reorder" className="input" min={0} value={reorder}
             onChange={(e) => setReorder(e.target.value)} />
           <span className="hint">Alert when stock falls to this number.</span>
         </div>

@@ -92,3 +92,11 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .no { color: var(--muted); }
 
 .head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* pagination */
+.pager { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+.pager-info { font-size: 13px; margin: 8px 0 0; }
+.pager-links { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.pager-links .btn { min-width: 36px; text-align: center; }
+.pager-links .btn.disabled { opacity: .45; pointer-events: none; }
+.pager-gap { padding: 0 4px; color: var(--muted); }

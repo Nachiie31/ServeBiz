@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { PASSWORD_MAX, passwordRules, isStrongPassword } from "@/lib/password";
 import Turnstile, { TURNSTILE_SITE_KEY, type TurnstileHandle } from "@/components/Turnstile";
 
 const captchaOn = !!TURNSTILE_SITE_KEY;
@@ -29,6 +30,7 @@ function LoginForm() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -72,6 +74,11 @@ function LoginForm() {
     setNotice(null);
 
     if (mode === "signup") {
+      if (!isStrongPassword(password)) {
+        setError("Your password does not meet all the requirements below.");
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -121,9 +128,25 @@ function LoginForm() {
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>
-            <input id="password" className="input" type="password" required minLength={6} value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === "login" ? "current-password" : "new-password"} />
+            <div style={{ display: "flex", gap: 6 }}>
+              <input id="password" className="input" type={showPw ? "text" : "password"} required value={password}
+                maxLength={PASSWORD_MAX}
+                onChange={(e) => setPassword(mode === "signup" ? e.target.value.replace(/\s/g, "") : e.target.value)}
+                onKeyDown={(e) => { if (mode === "signup" && e.key === " ") e.preventDefault(); }}
+                autoComplete={mode === "login" ? "current-password" : "new-password"} />
+              <button type="button" className="btn" onClick={() => setShowPw(!showPw)} aria-pressed={showPw}>
+                {showPw ? "Hide" : "Show"}
+              </button>
+            </div>
+            {mode === "signup" && (
+              <ul className="pw-rules" aria-live="polite" style={{ listStyle: "none", padding: 0, margin: "8px 0 0", fontSize: 13 }}>
+                {passwordRules(password).map((r) => (
+                  <li key={r.id} style={{ color: r.ok ? "#15803d" : "#6b7280" }}>
+                    {r.ok ? "✓" : "○"} {r.label}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <Turnstile ref={captcha} onToken={setToken} />
@@ -131,7 +154,7 @@ function LoginForm() {
           {error && <p className="error" role="alert">{error}</p>}
           {notice && <p className="notice">{notice}</p>}
 
-          <button className="btn btn-primary btn-block" disabled={loading || waiting} type="submit">
+          <button className="btn btn-primary btn-block" disabled={loading || waiting || (mode === "signup" && !isStrongPassword(password))} type="submit">
             {loading ? "Please wait..." : waiting ? "Checking you are human..." : mode === "login" ? "Log in" : "Sign up"}
           </button>
         </form>

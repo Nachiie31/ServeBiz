@@ -18,6 +18,7 @@ export default function SettingsForm({ business }: { business: Business }) {
   const [phone, setPhone] = useState(business.contact_phone ?? "");
   const [email, setEmail] = useState(business.contact_email ?? "");
   const [currency, setCurrency] = useState(business.currency);
+  const [branch, setBranch] = useState(business.branch_name ?? "");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +41,7 @@ export default function SettingsForm({ business }: { business: Business }) {
         contact_phone: phone.trim() || null,
         contact_email: email.trim() || null,
         currency,
+        ...(business.branch_name !== undefined ? { branch_name: branch.trim() || "Main branch" } : {}),
       })
       .eq("id", business.id);
     setLoading(false);
@@ -61,6 +63,13 @@ export default function SettingsForm({ business }: { business: Business }) {
         <label htmlFor="name">Business name</label>
         <input id="name" className="input" required value={name} onChange={(e) => setName(e.target.value)} />
       </div>
+
+      {business.branch_name !== undefined && (
+        <div className="field">
+          <label htmlFor="branch">Branch name</label>
+          <input id="branch" className="input" maxLength={60} value={branch} onChange={(e) => setBranch(e.target.value)} />
+        </div>
+      )}
 
       <div className="form-grid">
         <div className="field">
