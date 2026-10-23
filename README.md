@@ -4,7 +4,7 @@ Next.js + Supabase. See `PLAN.md` for the full roadmap.
 
 ## Run it
 1. Create a free project at supabase.com.
-2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`, `008_branches.sql`, `009_audit_overview.sql`. Each is safe to run again. **008 is required** by the businesses/branches, paging and invite rules below; 009 adds the audit log and All branches page.
+2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`, `008_branches.sql`, `009_audit_overview.sql`, `010_refunds.sql`. Each is safe to run again. **008 is required** by the businesses/branches, paging and invite rules below; 009 adds the audit log and All branches page.
 3. Authentication -> Sign In / Providers -> turn on **Allow anonymous sign-ins** (guest login). Leave CAPTCHA protection off until you set up the CAPTCHA key below (otherwise Supabase rejects every login).
 4. For quick testing, turn off "Confirm email" under the Email provider.
 5. Copy `.env.example` to `.env.local` and fill in the project URL and anon key (Project Settings -> API).
@@ -106,4 +106,10 @@ Number boxes reject `e`, `+`, `-` (and `.` for whole numbers), including paste. 
 
 ## Audit log (owners)
 **Audit log** lists who changed what in the current branch: product creation, price and detail edits, deletions, stock receipts and adjustments, voided sales, team joins/role changes/removals, invites, and tax/business settings. Entries are written by database triggers, cannot be edited or deleted from the app, and are filtered and paged. Ordinary sales are not repeated here (see Sales). Demo seeding is not logged.
+
+## CSV import (owners and managers)
+**Products > Import CSV** adds many deliveries at once. Download the template, fill it in, choose the file, review the preview (problem rows are listed with the reason and skipped), then import. Each row becomes one stock batch exactly like Receiving, so FEFO, the stock ledger and the audit log all work. Required: `code`, `quantity`, `base_price`; new products also need `name`. Optional: `selling_price` (only fills products that have none), `expiry_date`/`date_received` as 2026-03-31, `batch_no`, `supplier` (must already exist). Limits: 500 rows and 1 MB per file. Common header names such as SKU, Qty and Cost are recognised, and comma, semicolon or tab separators work.
+
+## Partial refunds (migration 010)
+On a completed sale, owners and managers get **Refund items**: pick how many of each item to take back. Discount and tax are refunded in proportion (the last refund pays the exact remainder), and the stock goes back into the batches it came from. A sale refunded in full becomes **Refunded**. Dashboard, reports and the All branches page subtract refunds on the day they are made. A sale that already has refunds can no longer be voided (refund the rest instead). The app records the refund but does not move money: hand cash back, or refund online payments in your Stripe dashboard.
 

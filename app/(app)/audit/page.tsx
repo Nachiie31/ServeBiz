@@ -16,7 +16,7 @@ const FILTERS = [
   { key: "all", label: "Everything" },
   { key: "product", label: "Products" },
   { key: "stock", label: "Stock" },
-  { key: "sale", label: "Voids" },
+  { key: "sale", label: "Voids & refunds" },
   { key: "member", label: "Team" },
   { key: "invite", label: "Invites" },
   { key: "settings", label: "Settings" },
@@ -28,6 +28,7 @@ const ACTION: Record<string, string> = {
   "product.edited": "Edited product",
   "product.deleted": "Deleted product",
   "sale.voided": "Voided sale",
+  "sale.refunded": "Refunded items",
   "stock.received": "Received stock",
   "stock.adjusted": "Adjusted stock",
   "member.joined": "Team member joined",
@@ -51,6 +52,7 @@ function describe(r: Row, currency: string): string {
   const d = r.details ?? {};
   if (r.action === "product.created") return `price ${formatMoney(Number(d.selling_price ?? 0), currency)}`;
   if (r.action === "sale.voided") return `total ${formatMoney(Number(d.total ?? 0), currency)}`;
+  if (r.action === "sale.refunded") return `refunded ${formatMoney(Number(d.total ?? 0), currency)}${d.reason ? `: ${String(d.reason)}` : ""}`;
   if (r.action === "stock.received" || r.action === "stock.adjusted") {
     const c = Number(d.change ?? 0);
     return `${c > 0 ? "+" : ""}${c}${d.type && d.type !== "receive" ? ` (${String(d.type)})` : ""}${d.reason ? `: ${String(d.reason)}` : ""}`;
