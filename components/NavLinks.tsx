@@ -17,6 +17,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/inventory/receiving", label: "Receiving", roles: MANAGE },
       { href: "/inventory/products", label: "Products", roles: MANAGE },
+      { href: "/inventory/purchase-orders", label: "Purchase orders", roles: MANAGE },
       { href: "/inventory/suppliers", label: "Suppliers", roles: MANAGE },
     ],
   },

@@ -15,7 +15,8 @@
 | All-branches overview, audit log | Done (migration 009) |
 | CSV import (products and stock) | Done |
 | Partial refunds | Done (migration 010) |
-| Later: purchase orders, PWA/offline | Not started |
+| Purchase orders | Done (migration 011) |
+| Later: PWA/offline | Not started |
 
 Stack: Next.js (App Router, TypeScript) + Supabase (Auth, Postgres, Storage) + Stripe (test mode). Deployed online (Vercel + Supabase).
 
