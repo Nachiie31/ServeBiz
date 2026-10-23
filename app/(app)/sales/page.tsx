@@ -78,7 +78,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                   <td className="num">{formatMoney(s.total, business.currency)}</td>
                   <td>
                     <span className={`chip${s.status === "completed" ? "" : " warn"}`}>
-                      {s.status === "completed" ? "Completed" : s.status === "voided" ? "Voided" : s.status}
+                      {s.status === "completed" ? "Completed" : s.status === "voided" ? "Voided" : s.status === "refunded" ? "Refunded" : s.status}
                     </span>
                   </td>
                 </tr>

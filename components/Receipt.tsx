@@ -12,6 +12,8 @@ export type ReceiptData = {
   method: string;
   tendered: number | null;
   items: { name: string; quantity: number; unit_price: number }[];
+  /** total already refunded (migration 010), shown under the total */
+  refunded?: number;
 };
 
 type Props = {
@@ -62,6 +64,12 @@ export default function Receipt({ business, currency, data, taxLabel }: Props) {
         {data.discount > 0 && <div><span>Discount</span><span>-{money(data.discount)}</span></div>}
         {data.tax > 0 && <div><span>{taxLabel ?? "Tax"}</span><span>{money(data.tax)}</span></div>}
         <div className="grand"><span>Total</span><span>{money(data.total)}</span></div>
+        {(data.refunded ?? 0) > 0 && (
+          <>
+            <div><span>Refunded</span><span>-{money(data.refunded ?? 0)}</span></div>
+            <div className="grand"><span>Net total</span><span>{money(data.total - (data.refunded ?? 0))}</span></div>
+          </>
+        )}
         <div><span>Paid by</span><span>{METHOD_LABEL[data.method] ?? data.method}</span></div>
         {data.method === "cash" && data.tendered !== null && (
           <>

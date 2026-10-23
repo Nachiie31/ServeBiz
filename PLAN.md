@@ -13,7 +13,9 @@
 | CAPTCHA on login (Turnstile), CSV export | Done |
 | Multi-business + branches, invite rule, password rules, pagination, typable POS qty | Done (migration 008) |
 | All-branches overview, audit log | Done (migration 009) |
-| Later: CSV import, purchase orders, partial refunds, PWA/offline | Not started |
+| CSV import (products and stock) | Done |
+| Partial refunds | Done (migration 010) |
+| Later: purchase orders, PWA/offline | Not started |
 
 Stack: Next.js (App Router, TypeScript) + Supabase (Auth, Postgres, Storage) + Stripe (test mode). Deployed online (Vercel + Supabase).
 
