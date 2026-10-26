@@ -4,7 +4,7 @@ Next.js + Supabase. See `PLAN.md` for the full roadmap.
 
 ## Run it
 1. Create a free project at supabase.com.
-2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`, `008_branches.sql`, `009_audit_overview.sql`, `010_refunds.sql`, `011_purchase_orders.sql`. Each is safe to run again. **008 is required** by the businesses/branches, paging and invite rules below; 009 adds the audit log and All branches page.
+2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`, `008_branches.sql`, `009_audit_overview.sql`, `010_refunds.sql`, `011_purchase_orders.sql`, `012_offline_sales.sql`. Each is safe to run again. **008 is required** by the businesses/branches, paging and invite rules below; 009 adds the audit log and All branches page.
 3. Authentication -> Sign In / Providers -> turn on **Allow anonymous sign-ins** (guest login). Leave CAPTCHA protection off until you set up the CAPTCHA key below (otherwise Supabase rejects every login).
 4. For quick testing, turn off "Confirm email" under the Email provider.
 5. Copy `.env.example` to `.env.local` and fill in the project URL and anon key (Project Settings -> API).
@@ -115,4 +115,12 @@ On a completed sale, owners and managers get **Refund items**: pick how many of 
 
 ## Purchase orders (migration 011, owners and managers)
 **Inventory > Purchase orders**: create an order (supplier, expected date, items with code, name, quantity and unit cost; numbered PO-0001, PO-0002 per business). When goods arrive, open the order and **Receive delivery**: enter the quantities (expiry and batch optional). Each line becomes a stock batch at the ordered cost, exactly like Receiving, and you can receive an order in several parts. Orders show as Ordered, Partly received or Received; an order nothing arrived for can be cancelled, and a partly received one can be closed. Orders are recorded in the audit log.
+
+## Offline mode and installing the app (migration 012)
+ServeBiz can be installed (browser menu > Install app / Add to Home Screen). The **point of sale keeps working without internet** on any device that opened `/pos` while online at least once:
+- **Cash sales** are saved on the device with a "waiting to sync" banner and an OFFLINE-xxxxxx receipt, and are sent automatically when the connection returns (or press **Sync now**). Each sale carries a unique reference, so a repeated send never sells twice.
+- Stock the offline sales already used is held back, so the till cannot sell the same items twice. If the server refuses a sale on sync (for example someone else sold the stock first), it is shown with the reason and you can **Try again** or **Discard** it.
+- Online (Stripe) payments need a connection and are disabled while offline. Receipt numbers, the sale time on reports (the real time of sale is kept), prices and tax are applied by the server at sync time.
+- Logging out clears the stored POS page and warns if sales are still waiting. Waiting sales stay on that device and send when the same person logs in again.
+- Only the POS page and static files are stored for offline use, and only in production builds (`npm run build && npm start`, or your Vercel deployment). Limits: 200 waiting sales per device; offline sales older than 30 days are dated on the day they sync.
 

@@ -16,7 +16,7 @@
 | CSV import (products and stock) | Done |
 | Partial refunds | Done (migration 010) |
 | Purchase orders | Done (migration 011) |
-| Later: PWA/offline | Not started |
+| Installable app + offline POS (cash sales sync later) | Done (migration 012) |
 
 Stack: Next.js (App Router, TypeScript) + Supabase (Auth, Postgres, Storage) + Stripe (test mode). Deployed online (Vercel + Supabase).
 

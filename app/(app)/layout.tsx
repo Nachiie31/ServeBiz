@@ -4,6 +4,7 @@ import { ROLE_LABEL } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import NavLinks from "@/components/NavLinks";
 import BusinessSwitcher, { type SwitcherGroup } from "@/components/BusinessSwitcher";
+import LogoutButton from "@/components/LogoutButton";
 import ResetDemoButton from "@/components/ResetDemoButton";
 import "../app.css";
 import "../pos.css";
@@ -62,9 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <NavLinks role={role} multiBranch={all.filter((e) => e.role === "owner" && e.business.organization_id === business.organization_id).length > 1} />
 
         <form action={signOut} className="sidebar-foot">
-          <button className="btn btn-block" type="submit">
-            {user.is_anonymous ? "Exit guest" : "Log out"}
-          </button>
+          <LogoutButton label={user.is_anonymous ? "Exit guest" : "Log out"} userId={user.id} />
         </form>
       </aside>
       <main className="main">

@@ -11,7 +11,7 @@ export default async function PosPage({
   searchParams: Promise<{ canceled?: string; stripe_error?: string }>;
 }) {
   const { canceled, stripe_error } = await searchParams;
-  const { business, role } = (await getMembership())!;
+  const { business, role, userId } = (await getMembership())!;
   const supabase = await createClient();
 
   const [productsData, stockRes, catRes, tax] = await Promise.all([
@@ -84,6 +84,7 @@ export default async function PosPage({
         notice={stripe_error ? stripe_error.slice(0, 600) : null}
         restoreCart={canceled === "1" || !!stripe_error}
         canEditTax={role === "owner"}
+        userId={userId}
       />
     </>
   );

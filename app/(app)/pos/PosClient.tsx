@@ -9,6 +9,7 @@ import Receipt, { type ReceiptData } from "@/components/Receipt";
 import type { Category } from "@/lib/types";
 import NumberInput from "@/components/NumberInput";
 import QtyInput from "./QtyInput";
+import { enqueue, flush, isTransient, queueFor, remove, update, type QueuedSale } from "@/lib/offline-queue";
 
 export type PosProduct = {
   id: string;
@@ -34,6 +35,7 @@ type Props = {
   restoreCart: boolean;
   /** only the owner can open Settings to change tax */
   canEditTax: boolean;
+  userId: string;
 };
 
 // Two ways to pay: cash at the counter, or online through Stripe (card, GCash, and whatever else
@@ -44,7 +46,7 @@ const CART_KEY = "servebiz-cart";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export default function PosClient({ business, currency, taxRate, taxName, taxInclusive, products, categories, stripeEnabled, notice, restoreCart, canEditTax }: Props) {
+export default function PosClient({ business, currency, taxRate, taxName, taxInclusive, products, categories, stripeEnabled, notice, restoreCart, canEditTax, userId }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -60,7 +62,77 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
   const [error, setError] = useState<string | null>(notice);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
+  // Offline mode: cash sales are kept on this device and sent when the connection is back.
+  const [online, setOnline] = useState(true);
+  const [queue, setQueue] = useState<QueuedSale[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncNote, setSyncNote] = useState<string | null>(null);
+  const [receiptOffline, setReceiptOffline] = useState(false);
+  const flushing = useRef(false);
+
   const money = (n: number) => formatMoney(n, currency);
+
+  const loadQueue = () => {
+    try { setQueue(queueFor(localStorage, userId)); } catch { /* storage unavailable */ }
+  };
+  const pending = queue.filter((q) => q.status === "pending");
+  const failedSales = queue.filter((q) => q.status === "failed");
+  const reserved = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const q of queue) if (q.status === "pending") for (const i of q.items) m.set(i.product_id, (m.get(i.product_id) ?? 0) + i.quantity);
+    return m;
+  }, [queue]);
+  // Stock on the shelf minus what offline sales have already promised.
+  const stockOf = (p: PosProduct) => Math.max(0, p.stock - (reserved.get(p.id) ?? 0));
+
+  async function syncNow() {
+    if (flushing.current) return;
+    let any = false;
+    try { any = queueFor(localStorage, userId).some((q) => q.status === "pending"); } catch { return; }
+    if (!any) return;
+    flushing.current = true;
+    setSyncing(true);
+    try {
+      const res = await flush(localStorage, userId, (sale) =>
+        supabase.rpc("sync_offline_sale", {
+          p_business_id: sale.businessId,
+          p_client_ref: sale.ref,
+          p_items: sale.items,
+          p_discount_type: sale.discountType,
+          p_discount_value: sale.discountValue,
+          p_tendered: sale.tendered,
+          p_sold_at: sale.soldAt,
+        })
+      );
+      if (res.sent > 0) {
+        setSyncNote(`${res.sent} offline sale${res.sent === 1 ? "" : "s"} synced.`);
+        router.refresh();
+      }
+    } finally {
+      flushing.current = false;
+      setSyncing(false);
+      loadQueue();
+    }
+  }
+
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    loadQueue();
+    const goOnline = () => { setOnline(true); void syncNow(); };
+    const goOffline = () => setOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    const timer = window.setInterval(() => { if (navigator.onLine) void syncNow(); }, 30000);
+    if (navigator.onLine) void syncNow();
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+      window.clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => { if (!online && method === "stripe") setMethod("cash"); }, [online, method]);
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   // Coming back from a cancelled or failed Stripe payment: put the cart back.
@@ -129,7 +201,7 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
     setError(null);
     setCart((c) => {
       const current = c[p.id] ?? 0;
-      if (current >= p.stock) return c;
+      if (current >= stockOf(p)) return c;
       return { ...c, [p.id]: current + 1 };
     });
   }
@@ -140,7 +212,7 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
     setCart((c) => {
       const next = { ...c };
       if (qty <= 0) delete next[id];
-      else next[id] = Math.min(qty, p.stock);
+      else next[id] = Math.min(qty, stockOf(p));
       return next;
     });
   }
@@ -156,7 +228,7 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
     );
     const target = exact ?? (filtered.length === 1 ? filtered[0] : undefined);
     if (target) {
-      if (target.stock > 0) add(target);
+      if (stockOf(target) > 0) add(target);
       else setError(`${target.name} is out of stock.`);
       setQuery("");
     } else {
@@ -202,22 +274,67 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
     }
   }
 
+  function saveOffline(sale: QueuedSale) {
+    try {
+      enqueue(localStorage, sale);
+    } catch (e) {
+      return setError((e as Error).message || "This device could not save the sale.");
+    }
+    setReceipt({
+      receipt_no: `OFFLINE-${sale.ref.slice(0, 6).toUpperCase()}`,
+      created_at: sale.soldAt,
+      status: "completed",
+      subtotal, discount, tax, total,
+      method: "cash",
+      tendered: sale.tendered,
+      items: lines.map((l) => ({ name: l.product.name, quantity: l.qty, unit_price: l.product.price })),
+    });
+    setReceiptOffline(true);
+    loadQueue();
+    clearCart();
+  }
+
   async function checkout() {
     setError(null);
     if (lines.length === 0) return setError("The cart is empty.");
     if (cashShort) return setError("Cash received is less than the total.");
     if (method === "stripe") return stripeCheckout();
 
+    const ref = crypto.randomUUID();
+    const queued: QueuedSale = {
+      ref, userId, businessId: business.id,
+      items: lines.map((l) => ({ product_id: l.product.id, quantity: l.qty })),
+      discountType, discountValue: discNum, tendered: tenderedNum, soldAt: new Date().toISOString(), total, status: "pending",
+    };
+    if (!online) return saveOffline(queued);
+
     setLoading(true);
-    const { data: saleId, error: rpcErr } = await supabase.rpc("complete_sale", {
+    // The reference makes a repeated request safe: a lost reply can never sell the same cart twice.
+    let { data: saleId, error: rpcErr } = await supabase.rpc("sync_offline_sale", {
       p_business_id: business.id,
-      p_items: lines.map((l) => ({ product_id: l.product.id, quantity: l.qty })),
+      p_client_ref: ref,
+      p_items: queued.items,
       p_discount_type: discountType,
       p_discount_value: discNum,
-      p_method: method,
       p_tendered: tenderedNum,
-      p_reference: null,
+      p_sold_at: queued.soldAt,
     });
+    if (rpcErr && /sync_offline_sale/.test(rpcErr.message) && !isTransient(rpcErr)) {
+      // Migration 012 is not installed yet: sell the old way.
+      ({ data: saleId, error: rpcErr } = await supabase.rpc("complete_sale", {
+        p_business_id: business.id,
+        p_items: queued.items,
+        p_discount_type: discountType,
+        p_discount_value: discNum,
+        p_method: method,
+        p_tendered: tenderedNum,
+        p_reference: null,
+      }));
+    }
+    if (rpcErr && isTransient(rpcErr)) {
+      setLoading(false);
+      return saveOffline(queued);   // the connection dropped: keep the sale on this device
+    }
 
     if (rpcErr || !saleId) {
       setLoading(false);
@@ -227,6 +344,7 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
           : rpcErr?.message ?? "Checkout failed."
       );
     }
+    setReceiptOffline(false);
 
     const [{ data: sale }, { data: items }] = await Promise.all([
       supabase.from("sales").select("receipt_no,created_at,status,subtotal,discount,tax,total").eq("id", saleId).single(),
@@ -256,6 +374,25 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
   return (
     <div className="pos">
       <div>
+        {(!online || queue.length > 0 || syncNote) && (
+          <div className={`alert${!online || failedSales.length > 0 ? " warn" : ""}`} role="status" style={{ marginBottom: 12 }}>
+            {!online && <div><strong>You are offline.</strong> Cash sales are saved on this device and sent when you reconnect. Online payments are unavailable.</div>}
+            {pending.length > 0 && (
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <span>{pending.length} sale{pending.length === 1 ? "" : "s"} waiting to sync.</span>
+                {online && <button className="btn" type="button" disabled={syncing} onClick={() => void syncNow()}>{syncing ? "Syncing..." : "Sync now"}</button>}
+              </div>
+            )}
+            {syncNote && <div>{syncNote}</div>}
+            {failedSales.map((f) => (
+              <div key={f.ref} style={{ marginTop: 6, fontSize: 14 }}>
+                <strong>{money(f.total)}</strong> sale from {new Date(f.soldAt).toLocaleString()} was not accepted: {f.error}{" "}
+                <button className="link-btn" type="button" onClick={() => { update(localStorage, f.ref, { status: "pending", error: undefined }); loadQueue(); void syncNow(); }}>Try again</button>{" "}
+                <button className="link-btn" type="button" onClick={() => { if (window.confirm("Discard this sale? It will not be recorded.")) { remove(localStorage, f.ref); loadQueue(); } }}>Discard</button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="pos-search">
           <input
             ref={searchRef}
@@ -290,11 +427,11 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
           <div className="tiles">
             {visible.map((p) => {
               const inCart = cart[p.id] ?? 0;
-              const out = p.stock <= 0;
+              const out = stockOf(p) <= 0;
               return (
-                <button key={p.id} type="button" className="tile" disabled={out || inCart >= p.stock} onClick={() => add(p)}>
+                <button key={p.id} type="button" className="tile" disabled={out || inCart >= stockOf(p)} onClick={() => add(p)}>
                   <span className="t-name">{p.name}</span>
-                  <span className="t-stock">{out ? "Out of stock" : `${p.stock - inCart} ${p.unit} left`}</span>
+                  <span className="t-stock">{out ? "Out of stock" : `${stockOf(p) - inCart} ${p.unit} left`}</span>
                   <span className="t-price">{money(p.price)}</span>
                 </button>
               );
@@ -325,8 +462,8 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
               <div className="amt">{money(p.price * qty)}</div>
               <div className="qty">
                 <button type="button" aria-label={`Decrease ${p.name}`} onClick={() => setQty(p.id, qty - 1)}>&minus;</button>
-                <QtyInput value={qty} max={p.stock} label={p.name} onChange={(n) => setQty(p.id, n)} />
-                <button type="button" aria-label={`Increase ${p.name}`} disabled={qty >= p.stock} onClick={() => setQty(p.id, qty + 1)}>+</button>
+                <QtyInput value={qty} max={stockOf(p)} label={p.name} onChange={(n) => setQty(p.id, n)} />
+                <button type="button" aria-label={`Increase ${p.name}`} disabled={qty >= stockOf(p)} onClick={() => setQty(p.id, qty + 1)}>+</button>
                 <button type="button" className="remove" onClick={() => setQty(p.id, 0)}>Remove</button>
               </div>
             </div>
@@ -373,8 +510,8 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
               <button
                 type="button"
                 className={method === "stripe" ? "on" : ""}
-                disabled={!stripeEnabled}
-                title={stripeEnabled ? undefined : "Add a Stripe test key to enable online payments"}
+                disabled={!stripeEnabled || !online}
+                title={!online ? "Online payments need a connection" : stripeEnabled ? undefined : "Add a Stripe test key to enable online payments"}
                 onClick={() => setMethod("stripe")}
               >
                 Online (Stripe)
@@ -430,7 +567,11 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
       {receipt && (
         <div className="modal-back" role="dialog" aria-modal="true" aria-label="Receipt">
           <div className="modal">
-            <div className="alert">Sale complete.</div>
+            {receiptOffline ? (
+              <div className="alert warn">Saved on this device. It will be sent automatically when you are back online. The final receipt number is assigned then.</div>
+            ) : (
+              <div className="alert">Sale complete.</div>
+            )}
             <Receipt business={business} currency={currency} data={receipt} taxLabel={taxRate > 0 ? `${taxName} (${taxRate}%${taxInclusive ? ", included" : ""})` : taxName} />
             <div className="modal-actions">
               <button className="btn" type="button" onClick={() => window.print()}>Print</button>
