@@ -41,8 +41,11 @@ const ACTION: Record<string, string> = {
   "member.removed": "Removed from team",
   "invite.sent": "Sent invite",
   "invite.cancelled": "Cancelled invite",
+  "invite.declined": "Invite declined",
   "settings.tax_changed": "Changed tax settings",
   "settings.changed": "Changed business details",
+  "payments.connected": "Connected Stripe account",
+  "payments.disconnected": "Disconnected Stripe account",
 };
 
 const FIELD: Record<string, string> = {
@@ -62,9 +65,10 @@ function describe(r: Row, currency: string): string {
     const c = Number(d.change ?? 0);
     return `${c > 0 ? "+" : ""}${c}${d.type && d.type !== "receive" ? ` (${String(d.type)})` : ""}${d.reason ? `: ${String(d.reason)}` : ""}`;
   }
-  if (r.action === "member.joined" || r.action === "member.removed" || r.action === "invite.sent" || r.action === "invite.cancelled") {
+  if (r.action === "member.joined" || r.action === "member.removed" || r.action === "invite.sent" || r.action === "invite.cancelled" || r.action === "invite.declined") {
     return `as ${show(d.role)}`;
   }
+  if (r.action.startsWith("payments.")) return `account ${String(d.account ?? "")}`;
   const parts: string[] = [];
   for (const [k, v] of Object.entries(d)) {
     if (Array.isArray(v) && v.length === 2) {

@@ -1,12 +1,25 @@
-import { getCurrentBusiness, getTaxSettings } from "@/lib/business";
+import { getAllMemberships, getMembership, getTaxSettings } from "@/lib/business";
+import { getConnectedAccount } from "@/lib/payment-route";
+import { defaultCountryFor } from "@/lib/stripe-connect";
+import { isStripeEnabled } from "@/lib/stripe";
+import PaymentsCard from "./PaymentsCard";
 import { createClient } from "@/lib/supabase/server";
 import OrgNameForm from "./OrgNameForm";
 import SettingsForm from "./SettingsForm";
 import TaxForm from "./TaxForm";
 
-export default async function SettingsPage() {
-  const business = (await getCurrentBusiness())!;
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ payments?: string; msg?: string }> }) {
+  const sp = await searchParams;
+  const { business, isGuest } = (await getMembership())!;
   const tax = await getTaxSettings(business.id);
+  const supabaseForPay = await createClient();
+  const acct = await getConnectedAccount(supabaseForPay, business.id);
+  const all = await getAllMemberships();
+  const siblings: { id: string; name: string }[] = [];
+  for (const e of all) {
+    if (e.business.id === business.id || e.role !== "owner" || e.business.organization_id !== business.organization_id) continue;
+    if ((await getConnectedAccount(supabaseForPay, e.business.id))) siblings.push({ id: e.business.id, name: e.business.branch_name ?? e.business.name });
+  }
   let org: { id: string; name: string } | null = null;
   if (business.organization_id) {
     const supabase = await createClient();
@@ -32,6 +45,16 @@ export default async function SettingsPage() {
           <OrgNameForm orgId={org.id} initial={org.name} />
         </div>
       )}
+
+      <PaymentsCard s={{
+        businessId: business.id,
+        platformReady: isStripeEnabled(),
+        isGuest,
+        account: acct ? { suffix: acct.stripe_account_id.slice(-4), chargesEnabled: acct.charges_enabled, detailsSubmitted: acct.details_submitted } : null,
+        defaultCountry: defaultCountryFor(business.currency),
+        sameBusinessBranches: siblings,
+        flash: sp.payments ? { state: sp.payments, msg: sp.msg ?? null } : null,
+      }} />
 
       <div className="card" id="tax" style={{ maxWidth: 640, marginBottom: 20, scrollMarginTop: 16 }}>
         <h3 style={{ marginBottom: 4 }}>Tax</h3>

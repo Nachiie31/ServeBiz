@@ -4,7 +4,7 @@ Next.js + Supabase. See `PLAN.md` for the full roadmap.
 
 ## Run it
 1. Create a free project at supabase.com.
-2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`, `008_branches.sql`, `009_audit_overview.sql`, `010_refunds.sql`, `011_purchase_orders.sql`, `012_offline_sales.sql`. Each is safe to run again. **008 is required** by the businesses/branches, paging and invite rules below; 009 adds the audit log and All branches page.
+2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`, `008_branches.sql`, `009_audit_overview.sql`, `010_refunds.sql`, `011_purchase_orders.sql`, `012_offline_sales.sql`, `013_payment_accounts.sql`. Each is safe to run again. **008 is required** by the businesses/branches, paging and invite rules below; 009 adds the audit log and All branches page.
 3. Authentication -> Sign In / Providers -> turn on **Allow anonymous sign-ins** (guest login). Leave CAPTCHA protection off until you set up the CAPTCHA key below (otherwise Supabase rejects every login).
 4. For quick testing, turn off "Confirm email" under the Email provider.
 5. Copy `.env.example` to `.env.local` and fill in the project URL and anon key (Project Settings -> API).
@@ -124,3 +124,21 @@ ServeBiz can be installed (browser menu > Install app / Add to Home Screen). The
 - Logging out clears the stored POS page and warns if sales are still waiting. Waiting sales stay on that device and send when the same person logs in again.
 - Only the POS page and static files are stored for offline use, and only in production builds (`npm run build && npm start`, or your Vercel deployment). Limits: 200 waiting sales per device; offline sales older than 30 days are dated on the day they sync.
 
+## A Stripe account per branch (migration 013, Stripe Connect)
+Each branch can take online payments into **its own Stripe account**, so different businesses (and branches) get paid into different accounts. Owners set it up in **Settings > Online payments > Connect Stripe account**: ServeBiz creates a connected account (Stripe Accounts v2, with a full Stripe dashboard for the owner, and Stripe as the fees and losses collector, as required for platforms on Stripe managed risk) for the branch and sends the owner to Stripe's setup page (in test mode you can use Stripe's test data and skip steps). When Stripe confirms the account can take charges, the POS sends that branch's online payments straight to it (Stripe "direct charges"). Branches of the same business can reuse one Stripe account (**Use the same Stripe account as...**); a different business can never use it.
+
+One-time setup on your Stripe platform account: in the Stripe dashboard (test mode) open **Connect > Get started** and enable Connect, so connected accounts can be created.
+
+- A branch with no connected account uses the shared test account from `STRIPE_SECRET_KEY` (the demo behaviour). Set `STRIPE_REQUIRE_CONNECT=1` to stop real (non-guest) businesses from using the shared account; guest demos are not affected.
+- A connected account that has not finished Stripe's setup cannot take payments (the POS says why); it never falls back to the shared account.
+- Payments are confirmed with Stripe on return, and the account in the link is only accepted when it matches the account registered for that branch. Connecting and disconnecting are recorded in the audit log (only the last 4 characters of the account id are shown). Guests cannot connect accounts.
+- Currencies and payment methods (cards, GCash, ...) available depend on each connected account's country and Stripe settings. Refunds of online payments are still done in that account's Stripe dashboard.
+
+
+## Invitations, removing businesses, search and menu (migration 014)
+Run `supabase/migrations/014_invites_remove.sql` in the Supabase SQL Editor (after 013).
+- **Invitations are accepted or declined.** Nobody joins a business automatically any more. Invited people see the invite on **Business > Invitations** (a banner and a count also appear), or on their first screen if they have no business yet, and choose Accept or Decline. A declined invite shows as "Declined" on the owner's Team page and can be removed or re-sent. One email still cannot belong to two different businesses.
+- **Remove a branch or a business** from **Business > My businesses** (owners only, type the name to confirm). It permanently deletes that branch's data. Your last remaining business can never be removed.
+- **Search** on Products filters as you type and suggests matching products (arrow keys and Enter work).
+- **Sidebar** sections (Inventory, Sales, Business) are buttons that open one at a time, so Log out always stays visible.
+- **Receipts** show refunded items and amounts per line, a "Partially refunded" tag, and the net total.

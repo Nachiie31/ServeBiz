@@ -7,7 +7,7 @@ import LocalTime from "@/components/LocalTime";
 import { ROLE_LABEL, type Role } from "@/lib/permissions";
 
 export type MemberRow = { user_id: string; role: Role; email: string | null; created_at: string };
-export type InviteRow = { id: string; email: string; role: "manager" | "cashier"; created_at: string };
+export type InviteRow = { id: string; email: string; role: "manager" | "cashier"; created_at: string; status?: "pending" | "declined" };
 
 type Props = {
   businessId: string;
@@ -53,7 +53,7 @@ export default function TeamClient({ businessId, currentUserId, members, invites
     const target = email.trim();
     const saved = await run(
       () => supabase.rpc("invite_member", { p_business_id: businessId, p_email: target, p_role: role }),
-      `Invite saved for ${target.toLowerCase()}. Ask them to sign up or log in with that email and they will join automatically.`
+      `Invite sent to ${target.toLowerCase()}. When they sign up or log in with that email they will see it and can accept or decline.`
     );
     if (saved) setEmail("");
   }
@@ -84,7 +84,7 @@ export default function TeamClient({ businessId, currentUserId, members, invites
             {busy ? "Saving..." : "Send invite"}
           </button>
           <p className="muted" style={{ fontSize: 13, marginBottom: 0 }}>
-            They need to confirm their email when they sign up. Nothing is emailed from here, so tell them yourself.
+            They need a confirmed email account, and they choose to accept or decline. Nothing is emailed from here, so tell them yourself.
           </p>
         </form>
       </div>
@@ -135,10 +135,10 @@ export default function TeamClient({ businessId, currentUserId, members, invites
       </section>
 
       <section className="section">
-        <h3>Pending invites</h3>
+        <h3>Invites</h3>
         <div className="table-wrap">
           {invites.length === 0 ? (
-            <div className="empty">No pending invites.</div>
+            <div className="empty">No invites waiting.</div>
           ) : (
             <table className="table">
               <thead><tr><th>Email</th><th>Role</th><th>Invited</th><th /></tr></thead>
@@ -146,12 +146,12 @@ export default function TeamClient({ businessId, currentUserId, members, invites
                 {invites.map((i) => (
                   <tr key={i.id}>
                     <td>{i.email}</td>
-                    <td><span className="chip gray">{ROLE_LABEL[i.role]}</span></td>
+                    <td><span className="chip gray">{ROLE_LABEL[i.role]}</span>{i.status === "declined" && <span className="chip warn" style={{ marginLeft: 6 }}>Declined</span>}</td>
                     <td><LocalTime iso={i.created_at} /></td>
                     <td className="num">
                       <button className="btn btn-sm" type="button" disabled={busy}
-                        onClick={() => run(() => supabase.from("business_invites").delete().eq("id", i.id), "Invite cancelled.")}>
-                        Cancel
+                        onClick={() => run(() => supabase.from("business_invites").delete().eq("id", i.id), i.status === "declined" ? "Invite removed." : "Invite cancelled.")}>
+                        {i.status === "declined" ? "Remove" : "Cancel"}
                       </button>
                     </td>
                   </tr>

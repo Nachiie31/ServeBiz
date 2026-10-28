@@ -11,7 +11,7 @@ export type ReceiptData = {
   total: number;
   method: string;
   tendered: number | null;
-  items: { name: string; quantity: number; unit_price: number }[];
+  items: { name: string; quantity: number; unit_price: number; refunded_qty?: number; refunded_amount?: number }[];
   /** total already refunded (migration 010), shown under the total */
   refunded?: number;
 };
@@ -44,6 +44,7 @@ export default function Receipt({ business, currency, data, taxLabel }: Props) {
         <span><LocalTime iso={data.created_at} /></span>
       </div>
       {data.status !== "completed" && <div className="receipt-void">{data.status.toUpperCase()}</div>}
+      {data.status === "completed" && (data.refunded ?? 0) > 0 && <div className="receipt-void">PARTIALLY REFUNDED</div>}
 
       <table className="receipt-lines">
         <tbody>
@@ -52,8 +53,14 @@ export default function Receipt({ business, currency, data, taxLabel }: Props) {
               <td>
                 {it.name}
                 <div className="receipt-sub">{it.quantity} x {money(it.unit_price)}</div>
+                {(it.refunded_qty ?? 0) > 0 && (
+                  <div className="receipt-refund">Refunded: {it.refunded_qty} of {it.quantity}</div>
+                )}
               </td>
-              <td className="r">{money(it.quantity * it.unit_price)}</td>
+              <td className="r">
+                {money(it.quantity * it.unit_price)}
+                {(it.refunded_qty ?? 0) > 0 && <div className="receipt-refund">-{money(it.refunded_amount ?? 0)}</div>}
+              </td>
             </tr>
           ))}
         </tbody>

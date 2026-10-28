@@ -1,7 +1,7 @@
 import { getMembership, getTaxSettings } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import type { Category } from "@/lib/types";
-import { isStripeEnabled } from "@/lib/stripe";
+import { getPaymentRoute } from "@/lib/payment-route";
 import { fetchAll } from "@/lib/paging";
 import PosClient, { type PosProduct } from "./PosClient";
 
@@ -11,9 +11,10 @@ export default async function PosPage({
   searchParams: Promise<{ canceled?: string; stripe_error?: string }>;
 }) {
   const { canceled, stripe_error } = await searchParams;
-  const { business, role, userId } = (await getMembership())!;
+  const { business, role, userId, isGuest } = (await getMembership())!;
   const supabase = await createClient();
 
+  const route = await getPaymentRoute(supabase, business.id, isGuest);
   const [productsData, stockRes, catRes, tax] = await Promise.all([
     fetchAll((a, b) =>
       supabase
@@ -80,7 +81,8 @@ export default async function PosPage({
         taxInclusive={tax.inclusive}
         products={products}
         categories={(catRes.data ?? []) as Category[]}
-        stripeEnabled={isStripeEnabled()}
+        stripeEnabled={route.mode !== "none"}
+        onlineNote={route.mode === "connected" ? "Online payments go to this branch's Stripe account." : route.mode === "none" ? route.reason : null}
         notice={stripe_error ? stripe_error.slice(0, 600) : null}
         restoreCart={canceled === "1" || !!stripe_error}
         canEditTax={role === "owner"}

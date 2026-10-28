@@ -3,6 +3,7 @@ import { getCurrentBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/format";
 import { redirect } from "next/navigation";
+import LiveSearch from "@/components/LiveSearch";
 import Paginator from "@/components/Paginator";
 import { PAGE_SIZE, pageCount, parsePage } from "@/lib/paging";
 
@@ -66,20 +67,19 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
         <div className="head-actions">
           <a href="/api/export/products" className="btn" download>Export products</a>
           <a href="/api/export/stock" className="btn" download>Export stock batches</a>
+          <Link href="/inventory/import" className="btn">Import CSV</Link>
           <Link href="/inventory/receiving" className="btn btn-primary">Receive products</Link>
         </div>
       </div>
 
-      <form className="toolbar" action="/inventory/products">
-        <input type="hidden" name="filter" value={filter} />
-        <input className="input" name="q" defaultValue={q} placeholder="Search name, code, or barcode" aria-label="Search products" />
-        <button className="btn" type="submit">Search</button>
+      <div className="toolbar">
+        <LiveSearch placeholder="Search name, code, or barcode" ariaLabel="Search products" suggestUrl="/api/suggest" />
         <div className="tabs">
           {FILTERS.map((f) => (
             <Link key={f.key} href={href(f.key)} className={`tab${filter === f.key ? " active" : ""}`}>{f.label}</Link>
           ))}
         </div>
-      </form>
+      </div>
 
       <div className="table-wrap">
         {rows.length === 0 ? (

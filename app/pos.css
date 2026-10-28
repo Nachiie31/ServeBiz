@@ -59,6 +59,7 @@
 .receipt-lines td { padding: 3px 0; vertical-align: top; }
 .receipt-lines td.r { text-align: right; white-space: nowrap; padding-left: 8px; }
 .receipt-sub { color: #666; font-size: 12px; }
+.receipt-refund { color: #b3261e; font-size: 12px; font-weight: 600; }
 .receipt-totals { border-top: 1px dashed #999; margin-top: 8px; padding-top: 8px; }
 .receipt-totals > div { display: flex; justify-content: space-between; padding: 1px 0; }
 .receipt-totals .grand { font-weight: 700; font-size: 15px; }

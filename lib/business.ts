@@ -146,9 +146,9 @@ export async function getCurrentBusiness(): Promise<Business | null> {
 }
 
 /**
- * For a login with no business yet: first join any business that invited this email, and give
- * guests their own demo store. Returns true when the user now belongs to a business.
- * Both steps quietly do nothing if the matching migration (006 / 007) has not been run yet.
+ * For a login with no business yet: give guests their own demo store. Returns true when the user
+ * now belongs to a business. Invited staff do NOT join automatically any more: they accept or
+ * decline on the Invitations page (migration 014). Quietly does nothing if migration 007 is missing.
  */
 export async function autoJoin(): Promise<boolean> {
   const supabase = await createClient();
@@ -157,9 +157,7 @@ export async function autoJoin(): Promise<boolean> {
   } = await supabase.auth.getUser();
   if (!user) return false;
 
-  if (!user.is_anonymous) {
-    await supabase.rpc("claim_invites");
-  } else {
+  if (user.is_anonymous) {
     await supabase.rpc("create_demo_business");
   }
   return (await loadMembership()) !== null;

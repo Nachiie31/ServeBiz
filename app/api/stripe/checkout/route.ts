@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { cartToMetadata, getStripe, toMinorUnits } from "@/lib/stripe";
+import { getPaymentRoute } from "@/lib/payment-route";
 
 type Body = {
   businessId?: string;
@@ -61,6 +62,11 @@ export async function POST(request: Request) {
   const { data: business } = await supabase.from("businesses").select("name,currency").eq("id", businessId).single();
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
 
+  // Whose Stripe account gets the money: this branch's own connected account, or the shared test account.
+  const route = await getPaymentRoute(supabase, businessId, !!user.is_anonymous);
+  if (route.mode === "none") return NextResponse.json({ error: route.reason }, { status: 409 });
+  const account = route.mode === "connected" ? route.accountId : null;
+
   const origin = new URL(request.url).origin;
   const count = items.reduce((n, i) => n + i.quantity, 0);
 
@@ -79,11 +85,12 @@ export async function POST(request: Request) {
         },
       },
     ],
-    success_url: `${origin}/pos/stripe-return?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${origin}/pos/stripe-return?session_id={CHECKOUT_SESSION_ID}${account ? `&acct=${account}` : ""}`,
     cancel_url: `${origin}/pos?canceled=1`,
     metadata: {
       user_id: user.id,
       business_id: businessId,
+      stripe_account: account ?? "",
       discount_type: discountType,
       discount_value: String(discountValue),
       ...cartToMetadata(items),
@@ -93,7 +100,7 @@ export async function POST(request: Request) {
   try {
     // Payment methods are chosen by Stripe automatically: card, plus GCash (PHP only) and any other
     // method switched on in Dashboard -> Settings -> Payment methods. Nothing to list here.
-    const session = await stripe.checkout.sessions.create(params);
+    const session = await stripe.checkout.sessions.create(params, account ? { stripeAccount: account } : undefined);
     return NextResponse.json({ url: session.url });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Stripe could not start the payment.";

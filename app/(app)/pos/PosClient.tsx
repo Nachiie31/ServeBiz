@@ -31,6 +31,8 @@ type Props = {
   products: PosProduct[];
   categories: Category[];
   stripeEnabled: boolean;
+  /** where online payments go, or why they are unavailable */
+  onlineNote?: string | null;
   notice: string | null;
   restoreCart: boolean;
   /** only the owner can open Settings to change tax */
@@ -46,7 +48,7 @@ const CART_KEY = "servebiz-cart";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export default function PosClient({ business, currency, taxRate, taxName, taxInclusive, products, categories, stripeEnabled, notice, restoreCart, canEditTax, userId }: Props) {
+export default function PosClient({ business, currency, taxRate, taxName, taxInclusive, products, categories, stripeEnabled, onlineNote, notice, restoreCart, canEditTax, userId }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -511,7 +513,7 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
                 type="button"
                 className={method === "stripe" ? "on" : ""}
                 disabled={!stripeEnabled || !online}
-                title={!online ? "Online payments need a connection" : stripeEnabled ? undefined : "Add a Stripe test key to enable online payments"}
+                title={!online ? "Online payments need a connection" : stripeEnabled ? undefined : onlineNote ?? "Online payments are off"}
                 onClick={() => setMethod("stripe")}
               >
                 Online (Stripe)
@@ -519,8 +521,12 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
             </div>
             {!stripeEnabled && (
               <div className="hint" style={{ marginTop: -4, marginBottom: 10, fontSize: 12, color: "var(--muted)" }}>
-                Online payments are off. Add <code>STRIPE_SECRET_KEY</code> to enable them (see README).
+                {onlineNote ?? "Online payments are off."}
               </div>
+            )}
+
+            {stripeEnabled && onlineNote && method === "stripe" && (
+              <div className="hint" style={{ marginTop: -4, marginBottom: 10, fontSize: 12, color: "var(--muted)" }}>{onlineNote}</div>
             )}
 
             {method === "cash" ? (

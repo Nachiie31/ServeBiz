@@ -4,6 +4,8 @@ import { ROLE_LABEL } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import NavLinks from "@/components/NavLinks";
 import BusinessSwitcher, { type SwitcherGroup } from "@/components/BusinessSwitcher";
+import { getMyInvites } from "@/lib/invites";
+import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
 import ResetDemoButton from "@/components/ResetDemoButton";
 import "../app.css";
@@ -33,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { business, role, isGuest } = membership;
 
   const all = await getAllMemberships();
+  const inviteCount = isGuest ? 0 : (await getMyInvites()).length;
   const groupMap = new Map<string, SwitcherGroup>();
   for (const e of all) {
     const key = e.business.organization_id ?? e.business.id;
@@ -60,7 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
 
         <BusinessSwitcher groups={[...groupMap.values()]} currentId={business.id} />
-        <NavLinks role={role} multiBranch={all.filter((e) => e.role === "owner" && e.business.organization_id === business.organization_id).length > 1} />
+        <NavLinks role={role} inviteCount={inviteCount} multiBranch={all.filter((e) => e.role === "owner" && e.business.organization_id === business.organization_id).length > 1} />
 
         <form action={signOut} className="sidebar-foot">
           <LogoutButton label={user.is_anonymous ? "Exit guest" : "Log out"} userId={user.id} />
@@ -73,6 +76,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               You are exploring a demo store with sample data. It is private to you and is cleared after 24 hours.
             </span>
             <ResetDemoButton />
+          </div>
+        )}
+        {inviteCount > 0 && (
+          <div className="alert demo-banner">
+            <span>You have {inviteCount} pending {inviteCount === 1 ? "invitation" : "invitations"} to join a business.</span>
+            <Link className="btn btn-sm" href="/invitations">Review</Link>
           </div>
         )}
         {children}

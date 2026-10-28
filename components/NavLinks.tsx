@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { Role } from "@/lib/permissions";
 
-type NavItem = { href: string; label: string; roles: Role[]; needsMulti?: boolean };
-type NavGroup = { title?: string; items: NavItem[] };
+type NavItem = { href: string; label: string; roles: Role[]; needsMulti?: boolean; badge?: "invites" };
+type NavGroup = { title: string; items: NavItem[] };
 
 const ALL: Role[] = ["owner", "manager", "cashier"];
 const MANAGE: Role[] = ["owner", "manager"];
 
+const top: NavItem[] = [{ href: "/dashboard", label: "Dashboard", roles: MANAGE }];
+
 const groups: NavGroup[] = [
-  { items: [{ href: "/dashboard", label: "Dashboard", roles: MANAGE }] },
   {
     title: "Inventory",
     items: [
@@ -33,6 +35,7 @@ const groups: NavGroup[] = [
     title: "Business",
     items: [
       { href: "/businesses", label: "My businesses", roles: ALL },
+      { href: "/invitations", label: "Invitations", roles: ALL, badge: "invites" },
       { href: "/overview", label: "All branches", roles: ["owner"], needsMulti: true },
       { href: "/team", label: "Team", roles: ["owner"] },
       { href: "/audit", label: "Audit log", roles: ["owner"] },
@@ -41,25 +44,56 @@ const groups: NavGroup[] = [
   },
 ];
 
-export default function NavLinks({ role, multiBranch = false }: { role: Role; multiBranch?: boolean }) {
+export default function NavLinks({ role, multiBranch = false, inviteCount = 0 }: { role: Role; multiBranch?: boolean; inviteCount?: number }) {
   const pathname = usePathname();
+  const visible = (g: NavGroup) => g.items.filter((i) => i.roles.includes(role) && (!i.needsMulti || multiBranch));
+  const shown = groups.map((g) => ({ ...g, items: visible(g) })).filter((g) => g.items.length > 0);
+  const activeGroup = shown.find((g) => g.items.some((i) => pathname.startsWith(i.href)))?.title ?? null;
+
+  // One section is open at a time, so the sidebar stays short and the log-out button stays in view.
+  const [open, setOpen] = useState<string | null>(activeGroup);
+  useEffect(() => {
+    setOpen(activeGroup);
+  }, [activeGroup]);
+
+  const badge = (i: NavItem) => (i.badge === "invites" && inviteCount > 0 ? <span className="nav-badge" aria-label={`${inviteCount} pending`}>{inviteCount}</span> : null);
+
   return (
     <nav className="nav-list" aria-label="Main">
-      {groups.map((g, gi) => {
-        const items = g.items.filter((i) => i.roles.includes(role) && (!i.needsMulti || multiBranch));
-        if (items.length === 0) return null;
+      {top.filter((i) => i.roles.includes(role)).map((l) => (
+        <Link key={l.href} href={l.href} className={`nav-link${pathname.startsWith(l.href) ? " active" : ""}`}>
+          {l.label}
+        </Link>
+      ))}
+      {shown.map((g) => {
+        const isOpen = open === g.title;
+        const id = `nav-${g.title.toLowerCase()}`;
+        const hasBadge = g.items.some((i) => i.badge === "invites") && inviteCount > 0;
         return (
-          <div key={g.title ?? gi} style={{ display: "contents" }}>
-            {g.title && <div className="nav-sep">{g.title}</div>}
-            {items.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`nav-link${pathname.startsWith(l.href) ? " active" : ""}`}
-              >
-                {l.label}
-              </Link>
-            ))}
+          <div key={g.title} className="nav-group">
+            <button
+              type="button"
+              className={`nav-toggle${g.title === activeGroup ? " has-active" : ""}`}
+              aria-expanded={isOpen}
+              aria-controls={id}
+              onClick={() => setOpen(isOpen ? null : g.title)}
+            >
+              <span>{g.title}</span>
+              <span className="nav-toggle-end">
+                {hasBadge && !isOpen && <span className="nav-badge" aria-label={`${inviteCount} pending invitations`}>{inviteCount}</span>}
+                <span className={`nav-chevron${isOpen ? " open" : ""}`} aria-hidden="true">›</span>
+              </span>
+            </button>
+            {isOpen && (
+              <div id={id} className="nav-sub">
+                {g.items.map((l) => (
+                  <Link key={l.href} href={l.href} className={`nav-link${pathname.startsWith(l.href) ? " active" : ""}`}>
+                    <span>{l.label}</span>
+                    {badge(l)}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}

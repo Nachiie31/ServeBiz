@@ -26,14 +26,20 @@ export default async function TeamPage() {
       .order("created_at", { ascending: true }),
     supabase
       .from("business_invites")
-      .select("id,email,role,created_at")
+      .select("id,email,role,created_at,status")
       .eq("business_id", business.id)
       .order("created_at", { ascending: false }),
   ]);
+  // Before migration 014 there is no status column: fall back so the page still loads.
+  let invitesData = invitesRes.data as unknown[] | null;
+  if (invitesRes.error) {
+    const old = await supabase.from("business_invites").select("id,email,role,created_at").eq("business_id", business.id).order("created_at", { ascending: false });
+    invitesData = old.data as unknown[] | null;
+  }
 
-  const needsMigration = !!membersRes.error || !!invitesRes.error;
+  const needsMigration = !!membersRes.error || (!!invitesRes.error && invitesData === null);
   const members = ((membersRes.data ?? []) as { user_id: string; role: Role; email: string | null; created_at: string }[]) satisfies MemberRow[];
-  const invites = (invitesRes.data ?? []) as InviteRow[];
+  const invites = ((invitesData ?? []) as InviteRow[]).map((i) => ({ ...i, status: i.status ?? "pending" }));
 
   return (
     <>

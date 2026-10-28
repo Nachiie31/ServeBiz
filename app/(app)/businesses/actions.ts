@@ -67,3 +67,59 @@ export async function addBranch(_prev: BranchState, formData: FormData): Promise
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }
+
+export type RemoveState = { error?: string };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function dropStaleCookie(removedIds: string[]) {
+  const jar = await cookies();
+  const current = jar.get(BUSINESS_COOKIE)?.value;
+  if (current && removedIds.includes(current)) jar.delete(BUSINESS_COOKIE);
+}
+
+/** Remove one branch (the person must type its name). The database refuses to remove someone's only business. */
+export async function removeBranch(_prev: RemoveState, formData: FormData): Promise<RemoveState> {
+  const id = String(formData.get("id") ?? "");
+  const typed = String(formData.get("confirm") ?? "").trim().toLowerCase();
+  if (!UUID.test(id)) return { error: "Branch not found." };
+  const supabase = await createClient();
+  const { data: row } = await supabase.from("businesses").select("branch_name,organization_id").eq("id", id).maybeSingle();
+  const branch = row as { branch_name: string; organization_id: string } | null;
+  if (!branch) return { error: "Branch not found." };
+  if (typed !== branch.branch_name.trim().toLowerCase()) return { error: `Type the branch name (${branch.branch_name}) exactly to confirm.` };
+
+  // If this is the business's last branch the whole business goes too, so remember all its branches.
+  const { data: siblings } = await supabase.from("businesses").select("id").eq("organization_id", branch.organization_id);
+  const { error } = await supabase.rpc("delete_branch", { p_business_id: id });
+  if (error) return { error: friendlyRemoveError(error.message) };
+  const gone = ((siblings ?? []) as { id: string }[]).length <= 1 ? ((siblings ?? []) as { id: string }[]).map((b) => b.id) : [id];
+  await dropStaleCookie(gone);
+  revalidatePath("/", "layout");
+  redirect("/businesses?removed=branch");
+}
+
+/** Remove a whole business and all its branches (the person must type the business name). */
+export async function removeBusiness(_prev: RemoveState, formData: FormData): Promise<RemoveState> {
+  const id = String(formData.get("id") ?? "");
+  const typed = String(formData.get("confirm") ?? "").trim().toLowerCase();
+  if (!UUID.test(id)) return { error: "Business not found." };
+  const supabase = await createClient();
+  const { data: org } = await supabase.from("organizations").select("name").eq("id", id).maybeSingle();
+  const name = (org as { name: string } | null)?.name;
+  if (!name) return { error: "Business not found." };
+  if (typed !== name.trim().toLowerCase()) return { error: `Type the business name (${name}) exactly to confirm.` };
+
+  const { data: branches } = await supabase.from("businesses").select("id").eq("organization_id", id);
+  const { error } = await supabase.rpc("delete_business", { p_org_id: id });
+  if (error) return { error: friendlyRemoveError(error.message) };
+  await dropStaleCookie(((branches ?? []) as { id: string }[]).map((b) => b.id));
+  revalidatePath("/", "layout");
+  redirect("/businesses?removed=business");
+}
+
+function friendlyRemoveError(message: string): string {
+  return /delete_branch|delete_business|my_business_count/.test(message) && /not exist|schema cache|Could not find/i.test(message)
+    ? "Removing needs a database update. Run supabase/migrations/014_invites_remove.sql in Supabase first."
+    : message;
+}

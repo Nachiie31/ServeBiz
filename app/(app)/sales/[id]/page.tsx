@@ -36,15 +36,23 @@ export default async function SaleDetail({
     supabase.from("payments").select("method,amount,amount_tendered,reference").eq("sale_id", id).limit(1),
     // Before migration 010 these tables do not exist; the page then simply shows no refunds.
     supabase.from("sale_returns").select("id,reason,refund_total,created_at").eq("sale_id", id).order("created_at", { ascending: true }),
-    supabase.from("sale_return_items").select("sale_item_id,quantity").eq("sale_id", id),
+    supabase.from("sale_return_items").select("sale_item_id,quantity,amount").eq("sale_id", id),
   ]);
 
   const rawItems = (itemsRes.data ?? []) as unknown as { id: string; quantity: number; unit_price: number; products: { name: string } | null }[];
-  const items = rawItems.map((i) => ({ name: i.products?.name ?? "Item", quantity: i.quantity, unit_price: i.unit_price }));
   const returnedBy = new Map<string, number>();
-  for (const r of (returnItemsRes.data ?? []) as { sale_item_id: string; quantity: number }[]) {
+  const refundedAmountBy = new Map<string, number>();
+  for (const r of (returnItemsRes.data ?? []) as { sale_item_id: string; quantity: number; amount: number | null }[]) {
     returnedBy.set(r.sale_item_id, (returnedBy.get(r.sale_item_id) ?? 0) + r.quantity);
+    refundedAmountBy.set(r.sale_item_id, (refundedAmountBy.get(r.sale_item_id) ?? 0) + Number(r.amount ?? 0));
   }
+  const items = rawItems.map((i) => ({
+    name: i.products?.name ?? "Item",
+    quantity: i.quantity,
+    unit_price: i.unit_price,
+    refunded_qty: returnedBy.get(i.id) ?? 0,
+    refunded_amount: refundedAmountBy.get(i.id) ?? 0,
+  }));
   const lines: RefundLine[] = rawItems.map((i) => ({ id: i.id, name: i.products?.name ?? "Item", sold: i.quantity, returned: returnedBy.get(i.id) ?? 0 }));
   const returns = (returnsRes.data ?? []) as { id: string; reason: string | null; refund_total: number; created_at: string }[];
   const refundedTotal = returns.reduce((s, r) => s + Number(r.refund_total), 0);
