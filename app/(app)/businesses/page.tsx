@@ -27,11 +27,9 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
           <h2>My businesses</h2>
           <p>Each branch keeps its own products, stock, sales and team. Pick one to work in.</p>
         </div>
-        {!current.isGuest && (
-          <Link className="btn btn-primary" href="/onboarding?new=1">
-            + New business
-          </Link>
-        )}
+        <Link className="btn btn-primary" href="/onboarding?new=1">
+          + New business
+        </Link>
       </div>
 
       {[...groups.entries()].map(([key, branches]) => (
@@ -57,7 +55,7 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
                         <button className="btn" type="submit">Switch</button>
                       </form>
                     )}
-                    {!current.isGuest && role === "owner" && (branches.length > 1 || businessCount > 1) && (
+                    {role === "owner" && (branches.length > 1 || businessCount > 1) && (
                       <RemoveButton kind="branch" id={business.id} name={business.branch_name ?? business.name} />
                     )}
                   </div>
@@ -65,13 +63,12 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
               );
             })}
           </div>
-          {!current.isGuest &&
-            branches.some((b) => b.role === "owner") &&
+          {branches.some((b) => b.role === "owner") &&
             (() => {
               const src = branches.find((b) => b.role === "owner")!;
               return <AddBranchForm sourceBusiness={src.business.id} />;
             })()}
-          {!current.isGuest && branches.every((b) => b.role === "owner") && branches[0].business.organization_id && (
+          {branches.every((b) => b.role === "owner") && branches[0].business.organization_id && (
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
               <RemoveButton
                 kind="business"
@@ -84,7 +81,10 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
         </div>
       ))}
       {current.isGuest && (
-        <p className="muted">Guest demos have one sample business. Sign up to manage several businesses and branches.</p>
+        <p className="muted">
+          Demo accounts can try everything: up to 3 businesses with up to 4 branches each. New ones come with sample data,
+          and everything is cleared after 24 hours.
+        </p>
       )}
     </>
   );

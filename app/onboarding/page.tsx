@@ -12,8 +12,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   const membership = await getMembership();
 
   if (membership) {
-    // Registered users can start another business; guests only get their demo store.
-    if (isNew && !membership.isGuest) return <OnboardingForm another />;
+    // Signed-in users (guests too, so the demo shows multiple businesses) can start another business.
+    if (isNew) return <OnboardingForm another />;
     redirect(homeFor(membership.role));
   }
 

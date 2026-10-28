@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DayRow } from "@/lib/sales-data";
 import { formatMoney } from "@/lib/format";
+import { movingAverage } from "@/lib/trends";
 
 type Props = {
   rows: DayRow[];
@@ -10,6 +11,8 @@ type Props = {
   loading?: boolean;
   /** Accessible name and table heading for the plotted measure. */
   measure?: string;
+  /** draw a trailing average line over this many days (0 = none) */
+  averageWindow?: number;
 };
 
 const HEIGHT = 260; // plot + x-axis band, so axis labels never get clipped
@@ -43,7 +46,7 @@ function barPath(x: number, y: number, w: number, h: number): string {
   return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
 }
 
-export default function BarChart({ rows, currency, loading = false, measure = "Net sales" }: Props) {
+export default function BarChart({ rows, currency, loading = false, measure = "Net sales", averageWindow = 0 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
@@ -77,6 +80,13 @@ export default function BarChart({ rows, currency, loading = false, measure = "N
   const peak = max > 0 ? rows.findIndex((r) => r.income === max) : -1;
   const total = rows.reduce((s, r) => s + r.income, 0);
   const empty = total === 0;
+
+  const avg = averageWindow > 1 ? movingAverage(rows, averageWindow) : [];
+  const avgPath = avg
+    .map((v, i) => (v === null ? null : `${PAD.left + slot * i + slot / 2},${yOf(v)}`))
+    .filter((p): p is string => p !== null)
+    .map((p, i) => `${i === 0 ? "M" : "L"}${p}`)
+    .join("");
 
   const hovered = hover !== null ? rows[hover] : null;
   const hx = hover !== null ? PAD.left + slot * hover + slot / 2 : 0;
@@ -136,6 +146,10 @@ export default function BarChart({ rows, currency, loading = false, measure = "N
                 />
               );
             })}
+
+            {avgPath && max > 0 && (
+              <path d={avgPath} fill="none" stroke="var(--ink)" strokeWidth={2} strokeDasharray="5 3" strokeLinejoin="round" strokeLinecap="round" />
+            )}
 
             {/* the peak, labeled once */}
             {peak >= 0 && hover === null && (() => {
@@ -201,6 +215,14 @@ export default function BarChart({ rows, currency, loading = false, measure = "N
           <div className="chart-empty">No sales in this period yet.</div>
         )}
       </div>
+      {avgPath && max > 0 && (
+        <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+          <svg width="22" height="8" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 6 }}>
+            <line x1="0" y1="4" x2="22" y2="4" stroke="var(--ink)" strokeWidth="2" strokeDasharray="5 3" />
+          </svg>
+          {averageWindow}-day average
+        </div>
+      )}
       <button type="button" className="link-btn chart-toggle" onClick={() => setTable(true)}>Show as table</button>
     </div>
   );

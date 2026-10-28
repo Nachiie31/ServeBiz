@@ -142,3 +142,8 @@ Run `supabase/migrations/014_invites_remove.sql` in the Supabase SQL Editor (aft
 - **Search** on Products filters as you type and suggests matching products (arrow keys and Enter work).
 - **Sidebar** sections (Inventory, Sales, Business) are buttons that open one at a time, so Log out always stays visible.
 - **Receipts** show refunded items and amounts per line, a "Partially refunded" tag, and the net total.
+
+## Sales trends and multi-business demo (migration 015)
+Run `supabase/migrations/015_demo_multi.sql` in the Supabase SQL Editor (after 014).
+- **Dashboard > Sales trends:** compares the chosen range (7, 30 or 90 days) with the period right before it: net sales, orders and average order, each with a change vs the previous period, plus the best day and busiest weekday. The chart has a dashed 7-day average line on the 30 and 90 day views.
+- **Demo accounts can use multiple businesses and branches.** A guest can create up to 3 businesses with up to 4 branches each and remove them again (never the last one). Every new business or branch a guest creates comes with sample products, stock and a month of sales (a different pattern each time), so the dashboard, reports and the All branches overview have data. Real accounts are unchanged and start empty. Reset demo wipes everything and returns to one business.

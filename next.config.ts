@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+
+  devIndicators: false,
   async headers() {
     // The service worker file must always be re-checked so updates reach devices.
     return [
