@@ -1,4 +1,4 @@
-import { getCurrentBusiness } from "@/lib/business";
+import { requireBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import type { Supplier } from "@/lib/types";
 import { redirect } from "next/navigation";
@@ -8,7 +8,7 @@ import SupplierForm from "./SupplierForm";
 
 export default async function SuppliersPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const page = parsePage((await searchParams).page);
-  const business = (await getCurrentBusiness())!;
+  const business = (await requireBusiness());
   const supabase = await createClient();
 
   const from = (page - 1) * PAGE_SIZE;

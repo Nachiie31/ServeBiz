@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAllMemberships, getMembership } from "@/lib/business";
+import { getAllMemberships, requireMembership } from "@/lib/business";
 import { ROLE_LABEL } from "@/lib/permissions";
 import { selectBusiness } from "./actions";
 import AddBranchForm from "./AddBranchForm";
@@ -7,7 +7,7 @@ import RemoveButton from "./RemoveButton";
 
 export default async function BusinessesPage({ searchParams }: { searchParams: Promise<{ removed?: string }> }) {
   const { removed } = await searchParams;
-  const current = (await getMembership())!;
+  const current = (await requireMembership());
   const all = await getAllMemberships();
 
   const groups = new Map<string, typeof all>();

@@ -42,5 +42,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
       </div>
     );
   }
-  return <OnboardingForm />;
+  return (
+    <>
+      {sp.declined && <div className="alert" style={{ maxWidth: 520, margin: "16px auto 0" }}>Invitation declined. You can set up your own business below.</div>}
+      <OnboardingForm />
+    </>
+  );
 }

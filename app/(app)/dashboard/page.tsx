@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentBusiness } from "@/lib/business";
+import { requireBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { daysUntil, formatDate, formatMoney } from "@/lib/format";
 import type { Batch, Product, StockRow } from "@/lib/types";
@@ -9,7 +9,7 @@ import SalesPanel from "./SalesPanel";
 const EXPIRY_WINDOW_DAYS = 30;
 
 export default async function Dashboard() {
-  const business = (await getCurrentBusiness())!;
+  const business = (await requireBusiness());
   const supabase = await createClient();
 
   // Read every row, not just the first 1000 the API returns by default.
@@ -86,7 +86,7 @@ export default async function Dashboard() {
 
       {needsPricing > 0 && (
         <div className="alert warn">
-          {needsPricing} product{needsPricing === 1 ? "" : "s"} still need a selling price before they can be sold.{" "}
+          {needsPricing} product{needsPricing === 1 ? "" : "s"} still {needsPricing === 1 ? "needs" : "need"} a selling price before {needsPricing === 1 ? "it" : "they"} can be sold.{" "}
           <Link href="/inventory/products?filter=pricing"><strong>Set prices</strong></Link>
         </div>
       )}

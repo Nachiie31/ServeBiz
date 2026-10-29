@@ -1,4 +1,4 @@
-import { getAllMemberships, getMembership, getTaxSettings } from "@/lib/business";
+import { getAllMemberships, getTaxSettings, requireMembership } from "@/lib/business";
 import { getConnectedAccount } from "@/lib/payment-route";
 import { defaultCountryFor } from "@/lib/stripe-connect";
 import { isStripeEnabled } from "@/lib/stripe";
@@ -10,7 +10,7 @@ import TaxForm from "./TaxForm";
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ payments?: string; msg?: string }> }) {
   const sp = await searchParams;
-  const { business, isGuest } = (await getMembership())!;
+  const { business, isGuest } = (await requireMembership());
   const tax = await getTaxSettings(business.id);
   const supabaseForPay = await createClient();
   const acct = await getConnectedAccount(supabaseForPay, business.id);

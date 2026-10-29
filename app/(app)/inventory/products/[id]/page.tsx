@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentBusiness } from "@/lib/business";
+import { requireBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { daysUntil, formatDate, formatMoney } from "@/lib/format";
 import type { Batch, Category, Movement, Product } from "@/lib/types";
@@ -23,7 +23,7 @@ export default async function ProductDetail({ params, searchParams }: { params: 
   const { id } = await params;
   const mpage = parsePage((await searchParams).mpage);
   const mFrom = (mpage - 1) * PAGE_SIZE;
-  const business = (await getCurrentBusiness())!;
+  const business = (await requireBusiness());
   const supabase = await createClient();
 
   const { data: productData } = await supabase

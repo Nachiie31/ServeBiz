@@ -476,11 +476,11 @@ export default function PosClient({ business, currency, taxRate, taxName, taxInc
           <>
             <div className="disc-row" style={{ marginTop: 12 }}>
               <select className="input" value={discountType} onChange={(e) => setDiscountType(e.target.value as "amount" | "percent")} aria-label="Discount type">
-                <option value="amount">Discount {currency}</option>
-                <option value="percent">Discount %</option>
+                <option value="amount">{currency} off</option>
+                <option value="percent">% off</option>
               </select>
               <NumberInput className="input" min={0} step="0.01" value={discountValue}
-                onChange={(e) => setDiscountValue(e.target.value)} placeholder="0" aria-label="Discount value" />
+                onChange={(e) => setDiscountValue(e.target.value)} placeholder="Discount" aria-label="Discount value" />
             </div>
 
             <div className="totals">

@@ -1,149 +1,151 @@
-# ServeBiz: POS and Inventory
+# ServeBiz
 
-Next.js + Supabase. See `PLAN.md` for the full roadmap.
+**Point of sale and inventory for small shops.** Receive stock, sell at the counter, track what's left, and see how your business is doing, from a phone, tablet or computer.
 
-## Run it
-1. Create a free project at supabase.com.
-2. SQL Editor -> run these in order: `supabase/schema.sql`, then `supabase/migrations/002_inventory.sql`, `003_pos.sql`, `004_stripe.sql`, `005_reports_tax.sql`, `006_roles.sql`, `007_demo.sql`, `008_branches.sql`, `009_audit_overview.sql`, `010_refunds.sql`, `011_purchase_orders.sql`, `012_offline_sales.sql`, `013_payment_accounts.sql`. Each is safe to run again. **008 is required** by the businesses/branches, paging and invite rules below; 009 adds the audit log and All branches page.
-3. Authentication -> Sign In / Providers -> turn on **Allow anonymous sign-ins** (guest login). Leave CAPTCHA protection off until you set up the CAPTCHA key below (otherwise Supabase rejects every login).
-4. For quick testing, turn off "Confirm email" under the Email provider.
-5. Copy `.env.example` to `.env.local` and fill in the project URL and anon key (Project Settings -> API).
-6. `npm install` then `npm run dev`, open http://localhost:3000. Restart the dev server after editing `.env.local`.
+> Try it without signing up: on the login page, press **Continue as guest** to get a demo store full of sample products and sales.
 
-## Flow
-Landing -> Login / Guest -> (no business yet) Onboarding -> Dashboard.
+---
 
-## Inventory (Phase 1)
-- **Receiving**: record a delivery. A new code creates the product as "Needs pricing".
-- **Products**: selling price, category, unit, barcode, reorder level, active flag. Quantity comes from batches.
-- **Remove stock**: damaged / expired / other, logged in Stock history.
-- **Suppliers**, **Dashboard** (stock value, low stock, expiring batches).
+## What you can do
 
-## Point of sale (Phase 2)
-- **POS**: search or scan a barcode (Enter), tap products, adjust quantities, discount (amount or %), pay by cash (with change), card, or e-wallet.
-- Prices and totals are calculated on the server; stock comes off the earliest-expiring batch and expired batches are never sold.
-- **Receipts**: printable (80 mm), reprint any time from **Sales history**.
-- **Void**: puts the items back into their original batches.
-- **Settings**: business details, currency, tax rate.
+| Area | What it's for |
+|---|---|
+| **POS** | Ring up sales, apply discounts, take cash or online payment, print receipts |
+| **Inventory** | Receive deliveries, manage products, suppliers, purchase orders, stock removals |
+| **Sales** | History of every sale, refunds, voids, receipt reprints |
+| **Dashboard & Reports** | Income, profit, best sellers, low stock, expiring items, sales trends |
+| **Team** | Invite staff with roles (owner, manager, cashier) |
+| **Businesses & branches** | Run several shops or branches and switch between them |
 
-## Stripe test payments (Phase 3)
-1. Create a free account at stripe.com and keep **Test mode** on.
-2. Developers -> API keys -> copy the **Secret key** (`sk_test_...`).
-3. Put it in `.env.local` as `STRIPE_SECRET_KEY=sk_test_...` and restart `npm run dev`. On Vercel, add it under Environment Variables.
-4. In the POS, a **Stripe** payment button appears. Checkout opens Stripe's hosted test page: card `4242 4242 4242 4242`, any future expiry, any CVC. Other test cards: stripe.com/docs/testing.
-5. After paying you land on the receipt. The sale is recorded only once Stripe confirms payment, and a payment can never create two sales.
+---
 
-Live keys (`sk_live_...`) are refused on purpose. Without a key, the Stripe button is simply hidden.
+## 1. Getting started
 
-### Paying online with GCash
-The POS has two payment choices: **Cash** and **Online (Stripe)**. The Stripe page chooses its payment methods automatically, so GCash appears once it is switched on in your Stripe account: Dashboard -> Settings -> Payment methods -> turn on **GCash**. It needs your business currency set to PHP in ServeBiz Settings, and Stripe only offers GCash to Philippines-based accounts. Until then the page shows card only. In test mode, GCash opens a Stripe test page where you choose to authorize or fail the payment. The receipt records which method the customer used.
+1. Open the site and choose **Create an account** (or **Continue as guest** for a demo).
+2. Password: 8-64 characters with an uppercase letter, a number and a special character, and no spaces. A checklist shows what's missing.
+3. Enter your **Business name** and **First branch name** (for example, "Main"). You can add a logo (PNG/JPG, up to 2 MB).
+4. You land on the dashboard as the **Owner**.
 
-## Tax
-Settings -> **Tax**: set a name (VAT, Sales tax), a rate, and whether your prices already include tax. The POS applies it to every sale and the receipt shows it. The POS cart also has an **Add tax** shortcut that opens this setting.
+**Invited by someone?** Sign up with the email they invited. You'll see the invitation with **Accept** and **Decline**.
 
-## Dashboard and reports
-The dashboard shows **Total income** (net sales, before tax, completed sales only) and a daily sales chart for 7, 30, or 90 days in your own timezone. **Reports** adds profit and top products.
+---
 
-## Staff roles
-Settings are for the owner; day-to-day work is split by role.
+## 2. Stock your shop (Inventory)
+
+### Receive a delivery
+**Inventory > Receiving**
+1. Type the **product code**. If it exists, the name fills in automatically.
+2. Choose a **supplier**, or pick **+ Add new supplier...** and type a name.
+3. Enter **quantity**, **cost**, optional **expiry date**, batch number and notes.
+4. For a new product, enter the **selling price** (the +20 / +30 / +50% buttons help you mark up from cost).
+5. Press **Record delivery**.
+
+Each delivery is saved as a batch, so you always know costs and expiry dates. A product without a price is marked **Needs pricing** and can't be sold until you set one.
+
+### Products
+**Inventory > Products**
+- Type in the search box and the list filters as you type, with suggestions. Search by name, code or barcode.
+- Use the tabs to see **All**, **Needs pricing**, **Low stock** or **Out of stock**.
+- Open a product to change its name, price, unit, category or reorder level, or to switch it off (**Active** tick).
+- **Export** products or stock batches to CSV; **Import CSV** to add many at once (preview first, bad rows are skipped).
+
+### Remove stock
+Open a product, choose a reason (damaged, expired, lost, recount), enter the quantity, and press **Remove stock**. You can't remove more than you have. Every movement is kept in the history.
+
+### Suppliers
+**Inventory > Suppliers**: keep your supplier list. The same name can't be added twice.
+
+### Purchase orders
+**Inventory > Purchase orders**
+1. **New**, choose the supplier, add items with quantity and expected cost. The total updates as you type.
+2. When goods arrive, open the order, enter what you received, press **Receive into stock**. Partial deliveries are fine; the order shows how much is left.
+3. **Cancel order** to close one you no longer need. **Print** for a paper copy.
+
+---
+
+## 3. Selling (POS)
+
+1. Open **POS**. Only active, priced products with stock appear.
+2. Tap products to add them. Use **+ / -** or type a quantity. You can't add more than is in stock.
+3. Optional: add a **discount** (% off or amount off).
+4. Choose **Cash** and enter what the customer gave (quick buttons help) to see the change, or choose **Online** to pay by card or GCash.
+5. Press **Charge**. The receipt appears and stock goes down.
+
+Tax shows on the receipt automatically (set it in Settings). Works on a phone too; if the connection drops, **cash sales are saved and sent when you're back online**.
+
+---
+
+## 4. Sales, refunds and voids
+
+**Sales > Sales history** lists every sale, newest first. Open one to see its receipt, reprint it, or export the list to CSV.
+
+- **Refund items** (owner or manager): pick the items and quantities to return. Stock goes back, and the receipt shows what was refunded and the net total.
+- **Void sale**: cancels a whole sale that has no refunds and returns all stock.
+- Cashiers see only **their own sales** and can't refund or void.
+
+---
+
+## 5. Dashboard and reports
+
+**Dashboard** shows total income, products, units, stock value, and what needs attention (low stock, expiring soon, products needing a price). **Sales trends** compares the last 7, 30 or 90 days with the period before, with a daily chart, best day and busiest weekday. Use **Show as table** if you prefer numbers.
+
+**Reports** shows net sales, number of orders, cost of goods, profit and top products. Voided sales are left out and refunds are subtracted.
+
+---
+
+## 6. Team and roles
+
+**Team**: type an email, choose a role, press **Send invite**. The person accepts or declines when they sign in. You can change roles, cancel invites or remove people at any time.
 
 | | Owner | Manager | Cashier |
-|---|---|---|---|
-| Ring up sales, reprint own receipts | yes | yes | yes |
-| See everyone's sales, void a sale | yes | yes | no |
-| Receive stock, edit products/prices, suppliers | yes | yes | no |
-| See costs, reports, profit | yes | yes | no |
-| Business details, tax, currency | yes | no | no |
-| Invite and remove staff | yes | no | no |
+|---|:-:|:-:|:-:|
+| Use the POS | Yes | Yes | Yes |
+| See own sales | Yes | Yes | Yes |
+| See all sales, refund, void | Yes | Yes | - |
+| Receive stock, edit products, reports | Yes | Yes | - |
+| Dashboard | Yes | Yes | - |
+| Team, Settings, Audit log | Yes | - | - |
 
-- **Team** page (owner): invite by email with a role, change roles, remove people, cancel invites. Nothing is emailed from the app, so tell the person to sign up or log in with that exact email; they join automatically. The email must be confirmed, so keep **Confirm email** ON in production.
-- Cashiers land on the POS and only see their own sales. They never see costs or profit.
-- The limits are enforced in the database (Row Level Security and checked functions in `006_roles.sql`), so they hold even if someone skips the app and calls the API directly.
-- One business per login for now. If someone already created their own business, an invite to another one will not move them; have them use a different email.
-- Without migration 006 the app still works and everyone behaves as an owner.
+---
 
-## Guest demo store
-"Continue as guest" gives each visitor a private, populated shop (`007_demo.sql`): 17 products, 3 suppliers, stock batches with one near expiry and one expired, a month of sales (cash and online), two voided sales, a product that still needs pricing, and low-stock alerts. A banner offers **Reset demo**. Without migration 007, guests get the normal empty-business setup instead.
+## 7. Several businesses and branches
 
-Clean up old guests so they do not pile up (they are real accounts in Supabase):
-- run `select public.purge_old_demos(24);` in the SQL Editor now and then, or
-- schedule that same statement in Supabase (Integrations -> Cron).
+**Business** (in the menu) lets you:
+- **Add a branch**: each branch has its own products, stock and sales.
+- **Create another business**.
+- **Switch** between them using the dropdown at the top of the menu.
+- **All branches**: one table comparing income, orders, profit and stock value for every branch you own.
+- **Invitations**: see invites sent to you and accept or decline them.
+- **Remove a branch or business**: type its name to confirm. You can't remove your last business.
 
-Before sharing the site publicly, turn on CAPTCHA (next section), otherwise bots can create guest accounts freely.
+---
 
-## CAPTCHA (do this before going public)
-Guest logins create real accounts, so protect them from bots with Cloudflare Turnstile (free).
-1. Cloudflare dashboard -> Turnstile -> **Add widget**. Add your site's domain (and `localhost` for testing). Copy the **Site key** and **Secret key**.
-2. Supabase -> Authentication -> Attack Protection -> **Enable CAPTCHA protection** -> provider **Cloudflare Turnstile** -> paste the **Secret key** -> Save.
-3. Put the site key in `.env.local` as `NEXT_PUBLIC_TURNSTILE_SITE_KEY=...` (and in Vercel Environment Variables), then restart `npm run dev` / redeploy.
+## 8. Settings
 
-The login page then shows the check and passes it to Supabase for log in, sign up, and guest login. Do steps 2 and 3 together: a key without Supabase's switch does nothing, and Supabase's switch without a key blocks all logins (the page tells you so). For a quick local test, Cloudflare's test keys always pass: site key `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA`.
+- **Business details**: name, location, currency, logo (shown on receipts).
+- **Tax**: tax name, rate, and whether prices already include tax.
+- **Online payments**: connect your own Stripe account so card and GCash payments go to you.
 
-## Exporting data
-Products page: **Export products** (prices, cost, stock) and **Export stock batches** (owner/manager). Sales history: **Export CSV** (up to 5,000 rows; a cashier only gets their own sales). Files open in Excel or Google Sheets. Text that looks like a formula is neutralised so a product named `=1+1` cannot run anything.
+---
 
-## Ideas for later
-Multiple businesses per login, CSV import, purchase orders, refunds for partly returned sales. See `PLAN.md`.
+## 9. Audit log
 
-## Multiple businesses and branches (migration 008)
-- A registered user can own several businesses. Each business can have several branches. **Each branch has its own products, stock, sales, tax and team**; roles are per branch.
-- Switch from the dropdown at the top of the sidebar, or on **My businesses**. Owners add branches there (tax and currency are copied from the branch they start from); **+ New business** starts a separate business.
-- **Invite rule:** an email that already belongs to (or has a pending invite from) a *different* business cannot be invited. The same email can be invited to other branches of *your own* business. Existing invites from another business stay pending and are skipped on login.
-- Limits: 10 businesses per person, 20 branches per business. Guest demos keep one sample business.
-- Note: the rule restricts invites only. A staff member can still create their own new business.
+**Audit log** (owner only) records who changed what and when: products, stock, sales, refunds, team and settings. Entries can't be edited or deleted.
 
-## Password rules
-New accounts need 8-64 characters with an uppercase letter, a number and a special character, and no spaces (live checklist on the sign-up form). Supabase enforces its own minimum too (Authentication > Sign In / Providers > Email) - set it to match if you want the server to refuse weaker passwords.
+---
 
-## Pagination and large data
-Products (server-side search and filter), sales, suppliers, recent deliveries and stock history show 25 per page with `?page=`; the POS grid pages 24 tiles at a time. The dashboard, POS and CSV exports read all rows (Supabase returns 1000 per request by default, which is now handled).
+## 10. The demo account
 
-## Inputs
-Number boxes reject `e`, `+`, `-` (and `.` for whole numbers), including paste. In the POS you can type a quantity or use the - / + buttons; it is capped at the stock on hand.
+**Continue as guest** gives a ready-made store with a month of sample sales. You can create up to 3 businesses with up to 4 branches each, try every feature, and press **Reset demo** to start over. Guest data is cleared after 24 hours.
 
-## All-branches overview (owners)
-**All branches** (sidebar, shown when you own more than one branch of a business) compares income, orders, profit, stock value and low/out-of-stock counts per branch for the last 7/30/90 days or all time. Only branches you own are included; managers and cashiers never see other branches. If branches use different currencies, combined totals are hidden.
+---
 
-## Audit log (owners)
-**Audit log** lists who changed what in the current branch: product creation, price and detail edits, deletions, stock receipts and adjustments, voided sales, team joins/role changes/removals, invites, and tax/business settings. Entries are written by database triggers, cannot be edited or deleted from the app, and are filtered and paged. Ordinary sales are not repeated here (see Sales). Demo seeding is not logged.
+## Tips
 
-## CSV import (owners and managers)
-**Products > Import CSV** adds many deliveries at once. Download the template, fill it in, choose the file, review the preview (problem rows are listed with the reason and skipped), then import. Each row becomes one stock batch exactly like Receiving, so FEFO, the stock ledger and the audit log all work. Required: `code`, `quantity`, `base_price`; new products also need `name`. Optional: `selling_price` (only fills products that have none), `expiry_date`/`date_received` as 2026-03-31, `batch_no`, `supplier` (must already exist). Limits: 500 rows and 1 MB per file. Common header names such as SKU, Qty and Cost are recognised, and comma, semicolon or tab separators work.
+- Use the menu groups (Inventory, Sales, Business) to find things; on a phone they start collapsed so **Log out** is always reachable.
+- Install it like an app: use your browser's **Install app** option.
+- Something not appearing in the POS? Check the product has a **selling price**, is **Active**, and has **stock**.
 
-## Partial refunds (migration 010)
-On a completed sale, owners and managers get **Refund items**: pick how many of each item to take back. Discount and tax are refunded in proportion (the last refund pays the exact remainder), and the stock goes back into the batches it came from. A sale refunded in full becomes **Refunded**. Dashboard, reports and the All branches page subtract refunds on the day they are made. A sale that already has refunds can no longer be voided (refund the rest instead). The app records the refund but does not move money: hand cash back, or refund online payments in your Stripe dashboard.
+---
 
-## Purchase orders (migration 011, owners and managers)
-**Inventory > Purchase orders**: create an order (supplier, expected date, items with code, name, quantity and unit cost; numbered PO-0001, PO-0002 per business). When goods arrive, open the order and **Receive delivery**: enter the quantities (expiry and batch optional). Each line becomes a stock batch at the ordered cost, exactly like Receiving, and you can receive an order in several parts. Orders show as Ordered, Partly received or Received; an order nothing arrived for can be cancelled, and a partly received one can be closed. Orders are recorded in the audit log.
-
-## Offline mode and installing the app (migration 012)
-ServeBiz can be installed (browser menu > Install app / Add to Home Screen). The **point of sale keeps working without internet** on any device that opened `/pos` while online at least once:
-- **Cash sales** are saved on the device with a "waiting to sync" banner and an OFFLINE-xxxxxx receipt, and are sent automatically when the connection returns (or press **Sync now**). Each sale carries a unique reference, so a repeated send never sells twice.
-- Stock the offline sales already used is held back, so the till cannot sell the same items twice. If the server refuses a sale on sync (for example someone else sold the stock first), it is shown with the reason and you can **Try again** or **Discard** it.
-- Online (Stripe) payments need a connection and are disabled while offline. Receipt numbers, the sale time on reports (the real time of sale is kept), prices and tax are applied by the server at sync time.
-- Logging out clears the stored POS page and warns if sales are still waiting. Waiting sales stay on that device and send when the same person logs in again.
-- Only the POS page and static files are stored for offline use, and only in production builds (`npm run build && npm start`, or your Vercel deployment). Limits: 200 waiting sales per device; offline sales older than 30 days are dated on the day they sync.
-
-## A Stripe account per branch (migration 013, Stripe Connect)
-Each branch can take online payments into **its own Stripe account**, so different businesses (and branches) get paid into different accounts. Owners set it up in **Settings > Online payments > Connect Stripe account**: ServeBiz creates a connected account (Stripe Accounts v2, with a full Stripe dashboard for the owner, and Stripe as the fees and losses collector, as required for platforms on Stripe managed risk) for the branch and sends the owner to Stripe's setup page (in test mode you can use Stripe's test data and skip steps). When Stripe confirms the account can take charges, the POS sends that branch's online payments straight to it (Stripe "direct charges"). Branches of the same business can reuse one Stripe account (**Use the same Stripe account as...**); a different business can never use it.
-
-One-time setup on your Stripe platform account: in the Stripe dashboard (test mode) open **Connect > Get started** and enable Connect, so connected accounts can be created.
-
-- A branch with no connected account uses the shared test account from `STRIPE_SECRET_KEY` (the demo behaviour). Set `STRIPE_REQUIRE_CONNECT=1` to stop real (non-guest) businesses from using the shared account; guest demos are not affected.
-- A connected account that has not finished Stripe's setup cannot take payments (the POS says why); it never falls back to the shared account.
-- Payments are confirmed with Stripe on return, and the account in the link is only accepted when it matches the account registered for that branch. Connecting and disconnecting are recorded in the audit log (only the last 4 characters of the account id are shown). Guests cannot connect accounts.
-- Currencies and payment methods (cards, GCash, ...) available depend on each connected account's country and Stripe settings. Refunds of online payments are still done in that account's Stripe dashboard.
-
-
-## Invitations, removing businesses, search and menu (migration 014)
-Run `supabase/migrations/014_invites_remove.sql` in the Supabase SQL Editor (after 013).
-- **Invitations are accepted or declined.** Nobody joins a business automatically any more. Invited people see the invite on **Business > Invitations** (a banner and a count also appear), or on their first screen if they have no business yet, and choose Accept or Decline. A declined invite shows as "Declined" on the owner's Team page and can be removed or re-sent. One email still cannot belong to two different businesses.
-- **Remove a branch or a business** from **Business > My businesses** (owners only, type the name to confirm). It permanently deletes that branch's data. Your last remaining business can never be removed.
-- **Search** on Products filters as you type and suggests matching products (arrow keys and Enter work).
-- **Sidebar** sections (Inventory, Sales, Business) are buttons that open one at a time, so Log out always stays visible.
-- **Receipts** show refunded items and amounts per line, a "Partially refunded" tag, and the net total.
-
-## Sales trends and multi-business demo (migration 015)
-Run `supabase/migrations/015_demo_multi.sql` in the Supabase SQL Editor (after 014).
-- **Dashboard > Sales trends:** compares the chosen range (7, 30 or 90 days) with the period right before it: net sales, orders and average order, each with a change vs the previous period, plus the best day and busiest weekday. The chart has a dashed 7-day average line on the 30 and 90 day views.
-- **Demo accounts can use multiple businesses and branches.** A guest can create up to 3 businesses with up to 4 branches each and remove them again (never the last one). Every new business or branch a guest creates comes with sample products, stock and a month of sales (a different pattern each time), so the dashboard, reports and the All branches overview have data. Real accounts are unchanged and start empty. Reset demo wipes everything and returns to one business.
+&copy; ServeBiz. All rights reserved. This is a portfolio project; the source code is not open for copying or redistribution.

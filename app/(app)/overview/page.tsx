@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAllMemberships, getMembership } from "@/lib/business";
+import { getAllMemberships, requireMembership } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/format";
 import { selectBusiness } from "../businesses/actions";
@@ -19,7 +19,7 @@ const RANGES: { key: string; label: string; days: number | null }[] = [
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const { range = "30" } = await searchParams;
   const sel = RANGES.find((r) => r.key === range) ?? RANGES[1];
-  const { business } = (await getMembership())!;
+  const { business } = (await requireMembership());
   const all = await getAllMemberships();
   const supabase = await createClient();
 

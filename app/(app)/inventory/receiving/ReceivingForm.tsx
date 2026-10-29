@@ -77,11 +77,21 @@ export default function ReceivingForm({ businessId, suppliers, products }: Props
         .insert({ business_id: businessId, name: newSupplier.trim() })
         .select("id")
         .single();
-      if (supErr || !data) {
+      if (supErr?.code === "23505") {
+        // Already exists (same name): use that supplier instead of failing.
+        const { data: existing } = await supabase.from("suppliers").select("id,name").eq("business_id", businessId).ilike("name", newSupplier.trim());
+        const match = ((existing ?? []) as { id: string; name: string }[]).find((x) => x.name.trim().toLowerCase() === newSupplier.trim().toLowerCase());
+        if (!match) {
+          setLoading(false);
+          return setError("That supplier already exists. Pick it from the list.");
+        }
+        supplier = match.id;
+      } else if (supErr || !data) {
         setLoading(false);
         return setError(supErr?.message ?? "Could not create supplier.");
+      } else {
+        supplier = data.id;
       }
-      supplier = data.id;
     }
 
     const { data: batchId, error: rpcErr } = await supabase.rpc("receive_stock", {

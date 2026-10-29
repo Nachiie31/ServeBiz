@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentBusiness } from "@/lib/business";
+import { requireBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PAGE_SIZE, pageCount, parsePage } from "@/lib/paging";
@@ -25,7 +25,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
   const sp = await searchParams;
   const tab = TABS.some((t) => t.key === sp.status) ? sp.status! : "open";
   const page = parsePage(sp.page);
-  const business = (await getCurrentBusiness())!;
+  const business = (await requireBusiness());
   const supabase = await createClient();
 
   const from = (page - 1) * PAGE_SIZE;

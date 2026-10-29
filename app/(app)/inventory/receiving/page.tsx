@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentBusiness } from "@/lib/business";
+import { requireBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Supplier } from "@/lib/types";
@@ -23,7 +23,7 @@ type Receipt = {
 export default async function ReceivingPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const page = parsePage((await searchParams).page);
   const from = (page - 1) * PAGE_SIZE;
-  const business = (await getCurrentBusiness())!;
+  const business = (await requireBusiness());
   const supabase = await createClient();
 
   const [suppliersRes, productsRes, receiptsRes] = await Promise.all([

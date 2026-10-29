@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMembership } from "@/lib/business";
+import { requireMembership } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/format";
 import { redirect } from "next/navigation";
@@ -20,7 +20,7 @@ const METHOD_LABEL: Record<string, string> = { cash: "Cash", card: "Card", ewall
 
 export default async function SalesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const page = parsePage((await searchParams).page);
-  const { business, role } = (await getMembership())!;
+  const { business, role } = (await requireMembership());
   const isCashier = role === "cashier";
   const supabase = await createClient();
 

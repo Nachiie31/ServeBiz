@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentBusiness } from "@/lib/business";
+import { requireBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/format";
 import { redirect } from "next/navigation";
@@ -32,7 +32,7 @@ const FILTERS = [
 export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
   const { q = "", filter = "all" } = sp;
-  const business = (await getCurrentBusiness())!;
+  const business = (await requireBusiness());
   const supabase = await createClient();
 
   const page = parsePage(sp.page);

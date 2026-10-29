@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getMembership } from "@/lib/business";
+import { requireMembership } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/format";
 import { PAGE_SIZE, pageCount, parsePage } from "@/lib/paging";
@@ -84,7 +84,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const entity = FILTERS.some((f) => f.key === sp.entity) ? sp.entity! : "all";
   const page = parsePage(sp.page);
-  const { business } = (await getMembership())!;
+  const { business } = (await requireMembership());
   const supabase = await createClient();
 
   const run = (pg: number) =>

@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { getCurrentBusiness } from "@/lib/business";
+import { requireBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/paging";
 import NewPoForm from "./NewPoForm";
 
 export default async function NewPoPage() {
-  const business = (await getCurrentBusiness())!;
+  const business = (await requireBusiness());
   const supabase = await createClient();
   const [suppliers, products] = await Promise.all([
     fetchAll<{ id: string; name: string }>((a, b) => supabase.from("suppliers").select("id,name").eq("business_id", business.id).order("name").order("id").range(a, b), 5000),

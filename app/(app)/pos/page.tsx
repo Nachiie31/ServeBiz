@@ -1,4 +1,4 @@
-import { getMembership, getTaxSettings } from "@/lib/business";
+import { getTaxSettings, requireMembership } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import type { Category } from "@/lib/types";
 import { getPaymentRoute } from "@/lib/payment-route";
@@ -11,7 +11,7 @@ export default async function PosPage({
   searchParams: Promise<{ canceled?: string; stripe_error?: string }>;
 }) {
   const { canceled, stripe_error } = await searchParams;
-  const { business, role, userId, isGuest } = (await getMembership())!;
+  const { business, role, userId, isGuest } = (await requireMembership());
   const supabase = await createClient();
 
   const route = await getPaymentRoute(supabase, business.id, isGuest);

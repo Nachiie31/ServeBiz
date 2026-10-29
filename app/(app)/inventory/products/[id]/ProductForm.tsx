@@ -36,6 +36,12 @@ export default function ProductForm({ businessId, product, categories, latestCos
   const [saved, setSaved] = useState(false);
 
   const priceNum = Number(price);
+  // A product that had no price becomes sellable as soon as it gets one (the person can still untick Active).
+  const hadNoPrice = !(product.selling_price > 0);
+  function changePrice(next: string) {
+    setPrice(next);
+    if (hadNoPrice && !product.is_active && Number(next) > 0) setIsActive(true);
+  }
   const belowCost = latestCost !== null && price !== "" && priceNum > 0 && priceNum < latestCost;
 
   async function onSubmit(e: React.FormEvent) {
@@ -140,13 +146,13 @@ export default function ProductForm({ businessId, product, categories, latestCos
         <div className="field">
           <label htmlFor="price">Selling price</label>
           <NumberInput id="price" className="input" min={0} step="0.01" value={price}
-            onChange={(e) => setPrice(e.target.value)} />
+            onChange={(e) => changePrice(e.target.value)} />
           {latestCost !== null && (
             <span className="hint">
               Latest cost: {formatMoney(latestCost, currency)}. Markup:{" "}
               {[20, 30, 50].map((m) => (
                 <button key={m} type="button" className="link-btn" style={{ marginRight: 8 }}
-                  onClick={() => setPrice((Math.round(latestCost * (1 + m / 100) * 100) / 100).toString())}>
+                  onClick={() => changePrice((Math.round(latestCost * (1 + m / 100) * 100) / 100).toString())}>
                   +{m}%
                 </button>
               ))}

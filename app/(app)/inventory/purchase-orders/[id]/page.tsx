@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentBusiness } from "@/lib/business";
+import { requireBusiness } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PO_STATUS_LABEL } from "@/lib/po";
@@ -9,7 +9,7 @@ import PrintButton from "../../../sales/[id]/PrintButton";
 
 export default async function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const business = (await getCurrentBusiness())!;
+  const business = (await requireBusiness());
   const supabase = await createClient();
 
   const { data: po } = await supabase

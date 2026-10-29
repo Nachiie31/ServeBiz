@@ -1,4 +1,4 @@
-import { getMembership } from "@/lib/business";
+import { requireMembership } from "@/lib/business";
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/permissions";
 import TeamClient, { type InviteRow, type MemberRow } from "./TeamClient";
@@ -15,7 +15,7 @@ const PERMISSIONS: { what: string; owner: boolean; manager: boolean; cashier: bo
 ];
 
 export default async function TeamPage() {
-  const { business, userId } = (await getMembership())!;
+  const { business, userId } = (await requireMembership());
   const supabase = await createClient();
 
   const [membersRes, invitesRes] = await Promise.all([

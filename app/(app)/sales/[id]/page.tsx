@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMembership, getTaxSettings } from "@/lib/business";
+import { getTaxSettings, requireMembership } from "@/lib/business";
 import { canManage } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import Receipt, { type ReceiptData } from "@/components/Receipt";
@@ -19,7 +19,7 @@ export default async function SaleDetail({
 }) {
   const { id } = await params;
   const { paid } = await searchParams;
-  const { business, role } = (await getMembership())!;
+  const { business, role } = (await requireMembership());
   const taxSettings = await getTaxSettings(business.id);
   const supabase = await createClient();
 
@@ -99,7 +99,7 @@ export default async function SaleDetail({
             {returns.map((r) => (
               <div key={r.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 14, padding: "4px 0" }}>
                 <span><LocalTime iso={r.created_at} />{r.reason ? <span className="muted"> · {r.reason}</span> : null}</span>
-                <strong>-{formatMoney(Number(r.refund_total), business.currency)}</strong>
+                <strong style={{ whiteSpace: "nowrap" }}>-{formatMoney(Number(r.refund_total), business.currency)}</strong>
               </div>
             ))}
             <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--line)", marginTop: 6, paddingTop: 8 }}>

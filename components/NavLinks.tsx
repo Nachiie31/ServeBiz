@@ -53,8 +53,10 @@ export default function NavLinks({ role, multiBranch = false, inviteCount = 0 }:
   // One section is open at a time, so the sidebar stays short and the log-out button stays in view.
   const [open, setOpen] = useState<string | null>(activeGroup);
   useEffect(() => {
-    setOpen(activeGroup);
-  }, [activeGroup]);
+    // On a phone the menu sits above the page, so start it collapsed instead of pushing the content down.
+    const phone = typeof window !== "undefined" && window.matchMedia("(max-width: 800px)").matches;
+    setOpen(phone ? null : activeGroup);
+  }, [activeGroup, pathname]);
 
   const badge = (i: NavItem) => (i.badge === "invites" && inviteCount > 0 ? <span className="nav-badge" aria-label={`${inviteCount} pending`}>{inviteCount}</span> : null);
 

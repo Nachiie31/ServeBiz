@@ -23,7 +23,9 @@ export default function SupplierForm({ businessId }: { businessId: string }) {
       .insert({ business_id: businessId, name: name.trim(), contact: contact.trim() || null });
 
     setLoading(false);
-    if (insErr) return setError(insErr.message);
+    if (insErr) {
+      return setError(insErr.code === "23505" ? `You already have a supplier called "${name.trim()}".` : insErr.message);
+    }
 
     setName("");
     setContact("");

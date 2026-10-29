@@ -1,8 +1,8 @@
-import { getCurrentBusiness } from "@/lib/business";
+import { requireBusiness } from "@/lib/business";
 import ReportsClient from "./ReportsClient";
 
 export default async function ReportsPage() {
-  const business = (await getCurrentBusiness())!;
+  const business = (await requireBusiness());
   return (
     <>
       <div className="page-head">

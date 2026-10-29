@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isRole, type Role } from "@/lib/permissions";
 
@@ -139,6 +140,21 @@ export async function loadMembership(): Promise<Membership | null> {
 
 /** Same as loadMembership, but only runs once per request however many components ask. */
 export const getMembership = cache(loadMembership);
+
+/**
+ * For pages inside the app shell. Someone with no business yet is sent to onboarding instead of the
+ * page crashing (the layout and the page render at the same time, so the page can run before the
+ * layout has redirected).
+ */
+export async function requireMembership(): Promise<Membership> {
+  const m = await getMembership();
+  if (!m) redirect("/onboarding");
+  return m;
+}
+
+export async function requireBusiness(): Promise<Business> {
+  return (await requireMembership()).business;
+}
 
 /** Returns the user's business, or null when none is set up yet. */
 export async function getCurrentBusiness(): Promise<Business | null> {
