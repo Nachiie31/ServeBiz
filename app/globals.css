@@ -94,3 +94,15 @@ h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; margin: 0; }
 .muted { color: var(--muted); }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+
+/* Landing page: SEO content sections */
+.seo-block { padding: 0 0 48px; max-width: 760px; }
+.seo-h2 { font-size: clamp(24px, 3.5vw, 32px); margin: 8px 0 18px; }
+.seo-steps { padding-left: 22px; display: grid; gap: 10px; color: var(--muted); line-height: 1.6; }
+.seo-steps strong { color: inherit; }
+.seo-faq { border-bottom: 1px solid var(--border, #e5e7eb); padding: 12px 0; }
+.seo-faq summary { cursor: pointer; font-weight: 600; }
+.seo-faq p { color: var(--muted); margin: 10px 0 0; line-height: 1.6; }
+.seo-footer { border-top: 1px solid var(--border, #e5e7eb); padding: 24px 0 40px; color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.seo-footer a { color: inherit; }
+.features { padding-top: 0; }

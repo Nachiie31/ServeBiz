@@ -8,8 +8,12 @@ import { getMyInvites } from "@/lib/invites";
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
 import ResetDemoButton from "@/components/ResetDemoButton";
+import type { Metadata } from "next";
 import "../app.css";
 import "../pos.css";
+
+// Everything behind login is private: keep it out of search results.
+export const metadata: Metadata = { robots: { index: false, follow: false, nocache: true } };
 
 async function signOut() {
   "use server";
